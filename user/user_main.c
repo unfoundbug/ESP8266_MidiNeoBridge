@@ -36,6 +36,29 @@ static void handleConnectionDropped(void* pArg);
 
 static void handleRecievedData(void* arg, char* pData, unsigned short iDataLen);
 
+#define pinHigh() GPIO_OUTPUT_SET(2,1); os_delay_us(32);
+#define pinLow() GPIO_OUTPUT_SET(2,0); os_delay_us(32);
+
+#define midiBit(bByte, oSet) if(bByte&oSet) {pinHigh();} else{ pinLow();}
+
+void sendMidiByte(char bByte) {
+	//StartBit
+	pinLow();
+
+	midiBit(bByte, 0x01);
+	midiBit(bByte, 0x02);
+	midiBit(bByte, 0x04);
+	midiBit(bByte, 0x08);
+	midiBit(bByte, 0x10);
+	midiBit(bByte, 0x20);
+	midiBit(bByte, 0x40);
+	midiBit(bByte, 0x80);
+
+	//EndBit
+	pinHigh();
+}
+
+
 void user_init();
 
 
@@ -106,19 +129,16 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 		giDataLen+=iToRead;
 		if(giDataLen == giDataMax)
 		{
+			os_printf("SendingData");
+			uint16 i;
+			for(i = 0; i < giDataMax; ++i)
+			{
+				sendMidiByte(gpDataBuffer[i]);
+			}
+
 			giDataLen = 0;
 			giDataMax = 0;
-			os_printf("Packet Complete :%d\n\r", gpDataBuffer[1]);
-			//flip 
-			for(;gpDataBuffer[1] > 0; --gpDataBuffer[1])
-			{
-				os_delay_us(270);//odd value to test accuracy
-				//gpio_output_set(0x02, 0, 0x02, 0);
-				GPIO_OUTPUT_SET(2,0);
-				os_delay_us(240);
-				//gpio_output_set(0, 0x02, 0x02, 0);
-				GPIO_OUTPUT_SET(2,1);
-			}
+			os_printf("Packet Complete\n\r");
 		}
 		os_printf("Recieved data length recieved: %d\n\r", iLength);
 
