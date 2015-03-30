@@ -82,6 +82,7 @@ handleConnectionDropped(void* pArg)
 static void ICACHE_FLASH_ATTR
 handleRecievedData(void* arg, char* pData, unsigned short iLength)
 {
+	os_printf("Handling data\n\r");
 	struct espconn * pConnection = (struct espconn*) arg;
 	if(pConnection->proto.tcp->local_port == espconnCommand.proto.tcp->local_port)
 	{
@@ -90,7 +91,28 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 	}
 	else
 	{
-		os_printf(rgcOutputString, "Recieved data length recieved: %d\n\r", iLength);
+		char* pDataToRead = pData;
+		unsigned short iToRead = iLength;
+		if(giDataMax == 0)
+		{
+			giDataMax = ((uint32*)pData)[0];
+			pDataToRead = pData + 4;
+		}
+		os_memcpy(gpDataBuffer+giDataLen, pDataToRead, iToRead);
+		giDataLen+=iToRead;
+		if(giDataLen == giDataMax)
+		{
+			//flip 
+			for(;gpDataBuffer[1] > 0; -gpDataBuffer[1])
+			{
+				os_delay_us(27);//odd value to test accuracy
+				GPIO_OUTPUT_SET(2,1);
+				os_delay_us(54);
+				GPIO_OUTPUT_SET(2,0);
+			}
+		}
+		os_printf("Recieved data length recieved: %d\n\r", iLength);
+
 	}
 
 }
@@ -163,7 +185,9 @@ user_init()
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
 	os_printf("SDK Version: %d.%d.%d/n/r", 1, 2, 3);
 
-	gpDataBuffer = (char*)os_malloc(20480);
+	gpio_init();
+
+	gpDataBuffer = (char*)os_malloc(10000);
 
 	//Start os task
 	system_os_task(loop, user_procTaskPrio,user_procTaskQueue, user_procTaskQueueLen);
