@@ -4,11 +4,18 @@
 #include "os_type.h"
 #include "user_config.h"
 #include "user_interface.h"
+#include "mem.h"
 
 #define user_procTaskPrio        0
 #define user_procTaskQueueLen    2
 os_event_t    user_procTaskQueue[user_procTaskQueueLen];
+
+char* pTCPConBuffer;
+
+
 static void loop(os_event_t *events);
+
+
 
 //Main code function
 static void ICACHE_FLASH_ATTR
@@ -28,9 +35,12 @@ loop(os_event_t *events)
 		os_printf(outString);
 	}
    // os_printf("Hello\n\r");
-    os_delay_us(1000);
-    system_os_post(user_procTaskPrio, 0, 0 );
+	os_sprintf(outString, "free heap %d\n\r", system_get_free_heap_size());
+	os_printf(outString);
+	os_delay_us(1000);
+	system_os_post(user_procTaskPrio, 0, 0 );
 }
+
 //Init localAP
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
@@ -66,12 +76,20 @@ setupLocalAP()
 
 	system_os_post(0,0,0);
 }
+
+//Handle TCP Packet
+
+//Init local TCP Server
+
+
 //Init function 
 void ICACHE_FLASH_ATTR
 user_init()
 {
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
 	os_printf("SDK Version: %d.%d.%d/n/r", 1, 2, 3);
+
+	pTCPConBuffer = (char*)os_malloc(20480);
 
 	//Start os task
 	system_os_task(loop, user_procTaskPrio,user_procTaskQueue, user_procTaskQueueLen);
