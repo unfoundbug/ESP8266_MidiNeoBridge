@@ -12,13 +12,14 @@
 #define user_procTaskQueueLen    2
 os_event_t    user_procTaskQueue[user_procTaskQueueLen];
 
+char* gpDataBuffer;
+uint32 giDataLen;
+uint32 giDataMax;
 
 //CommandTransfer
-char* pTCPCommand;
 struct espconn espconnCommand;
 
 //BulkTransfer
-char* pTCPData;
 struct espconn espconnTransfer;
 
 char rgcOutputString[65];
@@ -64,6 +65,8 @@ handleConnectionEstablished(void* pArg)
 	struct espconn * pConnection = (struct espconn*) pArg;
 	os_sprintf(rgcOutputString, "Connection established for port: %d\n\r", pConnection->proto.tcp->local_port);
 	os_printf(rgcOutputString);
+	giDataLen = 0;
+	giDataMax = 0;
 	espconn_regist_recvcb(pConnection, handleRecievedData);
 	espconn_regist_disconcb(pConnection, handleConnectionDropped);
 }
@@ -82,13 +85,13 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 	struct espconn * pConnection = (struct espconn*) arg;
 	if(pConnection->proto.tcp->local_port == espconnCommand.proto.tcp->local_port)
 	{
-		os_sprintf(rgcOutputString, "Recieved command length recieved: %d\n\r", iLength);
+		os_printf("Recieved command length recieved: %d\n\r", iLength);
+		os_printf("Recieved a command to : %s\n\r", pData);
 	}
 	else
 	{
-		os_sprintf(rgcOutputString, "Recieved data length recieved: %d\n\r", iLength);
+		os_printf(rgcOutputString, "Recieved data length recieved: %d\n\r", iLength);
 	}
-	os_printf(rgcOutputString);
 
 }
 static void ICACHE_FLASH_ATTR
@@ -160,7 +163,7 @@ user_init()
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
 	os_printf("SDK Version: %d.%d.%d/n/r", 1, 2, 3);
 
-	pTCPData = (char*)os_malloc(20480);
+	gpDataBuffer = (char*)os_malloc(20480);
 
 	//Start os task
 	system_os_task(loop, user_procTaskPrio,user_procTaskQueue, user_procTaskQueueLen);
