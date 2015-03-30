@@ -21,6 +21,8 @@ uint32 giDataMax;
 struct espconn espconnCommand;
 //BulkTransfer socket
 struct espconn espconnTransfer;
+//Client Socket
+struct espconn* espconnClient;
 
 //Timers
 os_timer_t tConnectionTimer;
@@ -107,6 +109,7 @@ static void ICACHE_FLASH_ATTR
 handleConnectionEstablished(void* pArg)
 {
 	struct espconn * pConnection = (struct espconn*) pArg;
+	espconnClient = pConnection;
 	os_printf("Connection established for port: %d\n\r", pConnection->proto.tcp->local_port);
 	giDataLen = 0;
 	giDataMax = 0;
@@ -175,7 +178,8 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	}
 	else if(cCommand == 's' || cCommand == 'S')
 	{
-		
+		espconn_disconnect(espconnClient);
+		wifi_set_opmode(0x00);
 		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
 		os_printf("Setting %c changed from %s to %s\n\r", cEntry, pcTarget, cValue);
 		os_sprintf(pcTarget, "%s", cValue);
@@ -187,7 +191,7 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 		{
 			wifi_softap_set_config(&wifiLocal);
 		}
-		
+		system_restart();
 	}
 }
 static void ICACHE_FLASH_ATTR
