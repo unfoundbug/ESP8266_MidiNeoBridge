@@ -75,11 +75,12 @@ handleConnectionDropped(void* pArg)
 	os_sprintf(rgcOutputString, "Connection dropped from port: %d\n\r", pConnection->proto.tcp->local_port);
 	os_printf(rgcOutputString);
 }
+//Recieve data from a connection
 static void ICACHE_FLASH_ATTR
 handleRecievedData(void* arg, char* pData, unsigned short iLength)
 {
 	struct espconn * pConnection = (struct espconn*) arg;
-	if(arg == &espconnCommand)
+	if(pConnection->proto.tcp->local_port == espconnCommand.proto.tcp->local_port)
 	{
 		os_sprintf(rgcOutputString, "Recieved command length recieved: %d\n\r", iLength);
 	}
@@ -139,7 +140,10 @@ setupLocalAP()
 
 	wifi_set_opmode(0x02);
 
+
 	enableTCPServer(8080, &espconnCommand);
+	enableTCPServer(8081, &espconnTransfer);
+	espconn_tcp_set_max_con(1);
 
 	system_os_post(0,0,0);
 }
