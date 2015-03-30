@@ -83,6 +83,8 @@ static void ICACHE_FLASH_ATTR
 handleRecievedData(void* arg, char* pData, unsigned short iLength)
 {
 	os_printf("Handling data\n\r");
+	os_printf("Current State: Max:%d Cur:%d\n\r", giDataMax, giDataLen);
+
 	struct espconn * pConnection = (struct espconn*) arg;
 	if(pConnection->proto.tcp->local_port == espconnCommand.proto.tcp->local_port)
 	{
@@ -95,20 +97,27 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 		unsigned short iToRead = iLength;
 		if(giDataMax == 0)
 		{
-			giDataMax = ((uint32*)pData)[0];
-			pDataToRead = pData + 4;
+			giDataMax = ((uint16*)pData)[0];
+			os_printf("New max length: %d\n\r", giDataMax);
+			pDataToRead = pData + 2;
+			iToRead -= 2;
 		}
 		os_memcpy(gpDataBuffer+giDataLen, pDataToRead, iToRead);
 		giDataLen+=iToRead;
 		if(giDataLen == giDataMax)
 		{
+			giDataLen = 0;
+			giDataMax = 0;
+			os_printf("Packet Complete :%d\n\r", gpDataBuffer[1]);
 			//flip 
-			for(;gpDataBuffer[1] > 0; -gpDataBuffer[1])
+			for(;gpDataBuffer[1] > 0; --gpDataBuffer[1])
 			{
-				os_delay_us(27);//odd value to test accuracy
-				GPIO_OUTPUT_SET(2,1);
-				os_delay_us(54);
+				os_delay_us(270);//odd value to test accuracy
+				//gpio_output_set(0x02, 0, 0x02, 0);
 				GPIO_OUTPUT_SET(2,0);
+				os_delay_us(240);
+				//gpio_output_set(0, 0x02, 0x02, 0);
+				GPIO_OUTPUT_SET(2,1);
 			}
 		}
 		os_printf("Recieved data length recieved: %d\n\r", iLength);
