@@ -5,42 +5,107 @@
 #include "user_config.h"
 #include "user_interface.h"
 #include "mem.h"
+#include "espconn.h"
+
 
 #define user_procTaskPrio        0
 #define user_procTaskQueueLen    2
 os_event_t    user_procTaskQueue[user_procTaskQueueLen];
 
-char* pTCPConBuffer;
+
+//CommandTransfer
+char* pTCPCommand;
+struct espconn espconnCommand;
+
+//BulkTransfer
+char* pTCPData;
+struct espconn espconnTransfer;
+
+char rgcOutputString[65];
 
 
 static void loop(os_event_t *events);
+static void setupLocalAP();
+
+static void enableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
+static void disableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
+
+static void handleConnectionEstablished(void* pArg);
+static void handleConnectionDropped(void* pArg);
+
+static void handleRecievedData(void* arg, char* pData, unsigned short iDataLen);
+
+void user_init();
 
 
-
-//Main code function
+//Called on a timer
 static void ICACHE_FLASH_ATTR
 loop(os_event_t *events)
 {
 	struct ip_info addrInfo;
-	char outString[65];
 	if(false)//wifi_get_ip_info( 1, &addrInfo))
 	{
-		os_sprintf(outString, "IP: %d.%d.%d.%d\n\r",  IP2STR(&addrInfo.ip.addr)); 
-		os_printf(outString);
+		os_sprintf(rgcOutputString, "IP: %d.%d.%d.%d\n\r",  IP2STR(&addrInfo.ip.addr)); 
+		os_printf(rgcOutputString);
 
-		os_sprintf(outString, "netmask: %d.%d.%d.%d\n\r", IP2STR(&addrInfo.netmask.addr));
-		os_printf(outString);
+		os_sprintf(rgcOutputString, "netmask: %d.%d.%d.%d\n\r", IP2STR(&addrInfo.netmask.addr));
+		os_printf(rgcOutputString);
 
-		os_sprintf(outString, "gw: %d.%d.%d.%d\n\r\n\r",  IP2STR(&addrInfo.gw.addr));
-		os_printf(outString);
+		os_sprintf(rgcOutputString, "gw: %d.%d.%d.%d\n\r\n\r",  IP2STR(&addrInfo.gw.addr));
+		os_printf(rgcOutputString);
 	}
-   // os_printf("Hello\n\r");
-	os_sprintf(outString, "free heap %d\n\r", system_get_free_heap_size());
-	os_printf(outString);
-	os_delay_us(1000);
 	system_os_post(user_procTaskPrio, 0, 0 );
 }
 
+//Handles a connection from a remote target on any port
+static void ICACHE_FLASH_ATTR
+handleConnectionEstablished(void* pArg)
+{
+	struct espconn * pConnection = (struct espconn*) pArg;
+	os_sprintf(rgcOutputString, "Connection established for port: %d\n\r", pConnection->proto.tcp->local_port);
+	os_printf(rgcOutputString);
+	espconn_regist_recvcb(pConnection, handleRecievedData);
+	espconn_regist_disconcb(pConnection, handleConnectionDropped);
+}
+//Handles remote client disconnection
+static void ICACHE_FLASH_ATTR
+handleConnectionDropped(void* pArg)
+{
+	struct espconn * pConnection =  (struct espconn*) pArg;
+	os_sprintf(rgcOutputString, "Connection dropped from port: %d\n\r", pConnection->proto.tcp->local_port);
+	os_printf(rgcOutputString);
+}
+static void ICACHE_FLASH_ATTR
+handleRecievedData(void* arg, char* pData, unsigned short iLength)
+{
+	struct espconn * pConnection = (struct espconn*) arg;
+	if(arg == &espconnCommand)
+	{
+		os_sprintf(rgcOutputString, "Recieved command length recieved: %d\n\r", iLength);
+	}
+	else
+	{
+		os_sprintf(rgcOutputString, "Recieved data length recieved: %d\n\r", iLength);
+	}
+	os_printf(rgcOutputString);
+
+}
+static void ICACHE_FLASH_ATTR
+enableTCPServer(uint32 iTCPPort, struct espconn * pConnection)
+{
+	memset(pConnection, 0, sizeof( struct espconn ) );
+
+	espconn_create(pConnection);
+	pConnection->type  = ESPCONN_TCP;
+	pConnection->state = ESPCONN_NONE; 
+
+	pConnection->proto.tcp = (esp_tcp*)os_malloc(sizeof(esp_tcp));
+	pConnection->proto.tcp->local_port = iTCPPort;
+
+	espconn_regist_connectcb(pConnection, handleConnectionEstablished);
+
+	espconn_accept(pConnection);
+}
 //Init localAP
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
@@ -74,6 +139,8 @@ setupLocalAP()
 
 	wifi_set_opmode(0x02);
 
+	enableTCPServer(8080, &espconnCommand);
+
 	system_os_post(0,0,0);
 }
 
@@ -89,7 +156,7 @@ user_init()
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
 	os_printf("SDK Version: %d.%d.%d/n/r", 1, 2, 3);
 
-	pTCPConBuffer = (char*)os_malloc(20480);
+	pTCPData = (char*)os_malloc(20480);
 
 	//Start os task
 	system_os_task(loop, user_procTaskPrio,user_procTaskQueue, user_procTaskQueueLen);
