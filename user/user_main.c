@@ -28,6 +28,8 @@ struct espconn* espconnClient;
 os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
+#define scheduleCall(Function, sig, par) { system_os_task(Function, 1, user_procTaskQueue, user_procTaskQueueLen); system_os_post(1, sig, par); }
+
 //Function definitions
 static void loop(os_event_t *events);
 
@@ -44,6 +46,8 @@ static void handleConnectionDropped(void* pArg);
 
 static void processCommand(struct espconn* pTarget, char* pData, uint16 iLength);
 static void processTransfer(struct espconn* pTarget, char* pData, uint16 iLength);
+
+static void Reboot();
 
 #define pinHigh() GPIO_OUTPUT_SET(2,1); os_delay_us(29);
 #define pinLow() GPIO_OUTPUT_SET(2,0); os_delay_us(29);
@@ -99,7 +103,7 @@ enableTCPServer(uint32 iTCPPort, struct espconn * pConnection)
 	pConnection->proto.tcp->local_port = iTCPPort;
 
 	espconn_regist_connectcb(pConnection, handleConnectionEstablished);
-
+	espconn_regist_time(pConnection, 20, 0);
 	espconn_accept(pConnection);
 }
 
@@ -140,7 +144,10 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 		processTransfer(pConnection, pData, iLength);
 	}
 }
-
+static void Reboot()
+{
+	system_restart();
+}
 static void ICACHE_FLASH_ATTR
 processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 {
@@ -178,8 +185,8 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	}
 	else if(cCommand == 's' || cCommand == 'S')
 	{
+		ets_wdt_disable();
 		espconn_disconnect(espconnClient);
-		wifi_set_opmode(0x00);
 		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
 		os_printf("Setting %c changed from %s to %s\n\r", cEntry, pcTarget, cValue);
 		os_sprintf(pcTarget, "%s", cValue);
@@ -191,7 +198,7 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 		{
 			wifi_softap_set_config(&wifiLocal);
 		}
-		system_restart();
+		scheduleCall(Reboot, 0, 0);
 	}
 }
 static void ICACHE_FLASH_ATTR
@@ -309,7 +316,12 @@ user_init()
 	os_timer_arm(&tStatusTimer, 10000, true);
 
 	//Start os task
-	system_os_task(connectToRemoteAP, 1, user_procTaskQueue, user_procTaskQueueLen);
+	system_os_task(connectToRemoteAP, 0, user_procTaskQueue, user_procTaskQueueLen);
+	system_os_task(Reboot, 2, user_procTaskQueue, user_procTaskQueueLen);
 	iRetryCount = 0;
-	system_os_post(1, 0, 0);
+	
+	//Ensure watchdogs are running
+	ets_wdt_enable();
+	
+	system_os_post(0, 0, 0); //START SYSTEM
 }
