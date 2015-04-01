@@ -4,16 +4,11 @@
 #include "os_type.h"
 #include "user_config.h"
 
-#define CFG_HOLDER	0x6A8D5553	/* Random 32 bit integer, magic marker for structure validation */
+#define CFG_HOLDER	0x6A8D7335	/* Random 32 bit integer, magic marker for structure validation */
 
-
-#define CFG_LOCATION	0x3C	/* Please don't change or if you know what you doing */
-//user data runs until 0x3E000
-//spi flash sectors are 4k in size
-//this would give us
-//Copy 1 in 0x3c000 (loc+0)
-//Copy 2 in 0x3d000 (loc+1)
-//ConfigurationFlags at 0x3f000 (This seems to take the last 4k off the OTA device key)
+#define CFGLOC_C1 40
+#define CFGLOC_C2 41
+#define CFGLOC_Fl 42
 
 
 

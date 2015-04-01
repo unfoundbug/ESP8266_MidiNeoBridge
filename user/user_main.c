@@ -238,6 +238,7 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	else if(cCommand == 'r' || cCommand == 'R')
 	{
 		espconn_disconnect(espconnClient);
+		ets_wdt_disable();
 		scheduleCall(Reboot, 0, 0);
 	}
 }
@@ -328,10 +329,24 @@ void ICACHE_FLASH_ATTR
 user_init()
 {
 	//Enable UART at 115200 BAUD
-	
+	uart_div_modify(0, UART_CLK_FREQ / 115200);//makesysCfg.cfg_BaudRate);
+	ets_wdt_disable();
 	CFG_Load();
 	
-	uart_div_modify(0, UART_CLK_FREQ / sysCfg.cfg_BaudRate);
+	os_printf("Loading complete\n\r");
+	if(sysCfg.station_ssid[0])
+		os_printf("Station SSID: %s\n\r", sysCfg.station_ssid);
+	if(sysCfg.station_pwd[0])
+		os_printf("Station PWD: %s\n\r", sysCfg.station_pwd);
+	if(sysCfg.localAP_ssid[0])
+		os_printf("LocalAP SSID: %s\n\r", sysCfg.localAP_ssid);
+	if(sysCfg.localAP_pwd[0])
+		os_printf("LocalAP PWD: %s\n\r", sysCfg.localAP_pwd);
+	os_printf("Baud: %d\n\r", sysCfg.cfg_BaudRate);
+	os_printf("OutMode: %d\n\r", sysCfg.conbOutputMode);
+	os_printf("Timeout: %d\n\r", sysCfg.conTCPTimeout);
+return;	
+	uart_div_modify(0, UART_CLK_FREQ / 115200);//makesysCfg.cfg_BaudRate);
 	os_printf("UART Enabled\n\r");
 	
 	//Setup GPIO and data buffer
@@ -349,7 +364,7 @@ user_init()
 	
 	//Ensure watchdogs are running
 	os_printf("WDT about to Enable\n\r");
-	ets_wdt_disable();
+	ets_wdt_enable();
 	os_printf("OS Starting\n\r");
 	system_os_post(0, 0, 0); //START SYSTEM
 }
