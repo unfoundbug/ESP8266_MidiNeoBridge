@@ -238,7 +238,6 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	else if(cCommand == 'r' || cCommand == 'R')
 	{
 		espconn_disconnect(espconnClient);
-		ets_wdt_disable();
 		scheduleCall(Reboot, 0, 0);
 	}
 }
@@ -253,11 +252,11 @@ checkConnection()
 	{
 		os_printf("Connected OK\n\r");
 	}
-	else if(iRetryCount < 2) //Any retries left?
+	else if(iRetryCount < 3) //Any retries left?
 	{
 		++iRetryCount;
 		os_printf("Waiting for connection\n\r");
-		os_timer_arm(&tConnectionTimer,2000, false);
+		os_timer_arm(&tConnectionTimer,4000, false);
 		return;
 	}
 	else
@@ -267,10 +266,11 @@ checkConnection()
 		wifi_station_disconnect();
 		setupLocalAP();
 	}
-	
+	os_printf("Starting servers\n\r");
 	enableTCPServer(8080, &espconnCommand);
 	enableTCPServer(8081, &espconnTransfer);
 	espconn_tcp_set_max_con(1);
+	os_printf("Servers started\n\r");
 }
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
@@ -280,10 +280,10 @@ setupLocalAP()
 
 	wifi_softap_get_config(&wifiLocal);
 
-	memcpy(wifiLocal.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid));
+	memcpy(wifiLocal.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid)+1);
 	wifiLocal.ssid_len = strlen(sysCfg.localAP_ssid);
 	
-	memcpy(wifiLocal.password, sysCfg.localAP_pwd, strlen(sysCfg.localAP_pwd));
+	memcpy(wifiLocal.password, sysCfg.localAP_pwd, strlen(sysCfg.localAP_pwd)+1);
 	
 	wifiLocal.authmode = AUTH_WPA_WPA2_PSK;
 	wifi_softap_set_config(&wifiLocal);
@@ -302,22 +302,28 @@ setupLocalAP()
 static void ICACHE_FLASH_ATTR
 connectToRemoteAP()
 {
-	os_printf("Starting station mode\n\r");
-	wifi_set_opmode(0x01);
-	os_printf("Starting station configuration\n\r");
-	struct station_config stationConf;
-	wifi_station_get_config(&stationConf);
-	
-	memcpy(stationConf.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid));	
-	memcpy(stationConf.password, sysCfg.localAP_pwd, strlen(sysCfg.localAP_pwd));
-	
-	
-	stationConf.bssid_set = 0;
-	wifi_station_set_config(&stationConf);
-	os_printf("Starting Connection\n\r");
-	wifi_station_connect();
-	os_printf("Starting DHCP Service\n\r");
-	wifi_station_dhcpc_start();
+	if(sysCfg.localAP_ssid[0])
+	{
+		os_printf("Starting station mode\n\r");
+		wifi_set_opmode(0x01);
+		os_printf("Starting station configuration\n\r");
+		struct station_config stationConf;
+		wifi_station_get_config(&stationConf);
+		
+		memcpy(stationConf.ssid, sysCfg.station_ssid, strlen(sysCfg.station_ssid)+1);	
+		if(sysCfg.station_pwd[0])
+			memcpy(stationConf.password, sysCfg.station_pwd, strlen(sysCfg.station_pwd)+1);
+		else
+			stationConf.password[0] = 0;
+		
+		
+		stationConf.bssid_set = 0;
+		wifi_station_set_config(&stationConf);
+		os_printf("Starting Connection to %s with %s\n\r", stationConf.ssid, stationConf.password);
+		wifi_station_connect();
+		os_printf("Starting DHCP Service\n\r");
+		wifi_station_dhcpc_start();
+	}
 	os_timer_disarm(&tConnectionTimer);
 	os_timer_setfn(&tConnectionTimer, (os_timer_func_t*) checkConnection, 0);
 	os_timer_arm(&tConnectionTimer, 4000, false);
@@ -345,7 +351,7 @@ user_init()
 	os_printf("Baud: %d\n\r", sysCfg.cfg_BaudRate);
 	os_printf("OutMode: %d\n\r", sysCfg.conbOutputMode);
 	os_printf("Timeout: %d\n\r", sysCfg.conTCPTimeout);
-return;	
+	
 	uart_div_modify(0, UART_CLK_FREQ / 115200);//makesysCfg.cfg_BaudRate);
 	os_printf("UART Enabled\n\r");
 	
@@ -358,13 +364,11 @@ return;
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) loop, 0);
 	os_timer_arm(&tStatusTimer, 10000, true);
 	os_printf("Timer set\n\r");
+	
 	//Start os task
 	system_os_task(connectToRemoteAP, 0, user_procTaskQueue, user_procTaskQueueLen);
 	iRetryCount = 0;
 	
-	//Ensure watchdogs are running
-	os_printf("WDT about to Enable\n\r");
-	ets_wdt_enable();
 	os_printf("OS Starting\n\r");
 	system_os_post(0, 0, 0); //START SYSTEM
 }
