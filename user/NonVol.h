@@ -20,7 +20,7 @@
 
 typedef struct{
 	//4,4
-	uint32_t cfg_BaudRate; //magic number holder, if this doesn't match assume un-configured
+	uint32_t cfg_holder; //magic number holder, if this doesn't match assume un-configured
 	
 	//256,260
 	uint8_t station_ssid[64]; //station to connect to
