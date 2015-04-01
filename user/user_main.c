@@ -1,11 +1,4 @@
-#include "ets_sys.h"
-#include "osapi.h"
-#include "gpio.h"
-#include "os_type.h"
 #include "user_config.h"
-#include "user_interface.h"
-#include "mem.h"
-#include "espconn.h"
 #include "NonVol.h"
 //Tasks
 #define user_procTaskPrio        0
@@ -314,9 +307,7 @@ connectToRemoteAP()
 	struct station_config stationConf;
 	wifi_station_get_config(&stationConf);
 	
-	memcpy(stationConf.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid));
-	stationConf.ssid_len = strlen(sysCfg.localAP_ssid);
-	
+	memcpy(stationConf.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid));	
 	memcpy(stationConf.password, sysCfg.localAP_pwd, strlen(sysCfg.localAP_pwd));
 	
 	
@@ -340,7 +331,7 @@ user_init()
 	
 	CFG_Load();
 	
-	uart_div_modify(0, UART_CLK_FREQ / sysCfg.cfg_Baudrate);
+	uart_div_modify(0, UART_CLK_FREQ / sysCfg.cfg_BaudRate);
 	os_printf("UART Enabled\n\r");
 	
 	//Setup GPIO and data buffer

@@ -1,4 +1,3 @@
-#include "os_type.H"
 
 #ifndef USER_CONFIG_H_
 #define USER_CONFIG_H_

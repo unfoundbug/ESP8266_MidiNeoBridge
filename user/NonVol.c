@@ -2,13 +2,8 @@
 #include "ets_sys.h"
 #include "os_type.h"
 #include "mem.h"
-#include "osapi.h"
 #include "user_interface.h"
-
-#include "mqtt.h"
-#include "config.h"
 #include "user_config.h"
-#include "debug.h"
 
 SYSCFG sysCfg;
 SAVE_FLAG saveFlag;
@@ -41,8 +36,6 @@ CFG_Save()
 void ICACHE_FLASH_ATTR
 CFG_Load()
 {
-
-	INFO("\r\nload ...\r\n");
 	spi_flash_read((CFG_LOCATION + 3) * SPI_FLASH_SEC_SIZE,
 				   (uint32 *)&saveFlag, sizeof(SAVE_FLAG));
 	if (saveFlag.flag == 0) {
@@ -59,7 +52,7 @@ CFG_Load()
 		sysCfg.cfg_BaudRate = 115200; //magic number holder, if this doesn't match assume un-configured
 
 		//Leave target station blank by default
-		os_sprintf(localAP_ssid, "ESPStation_%02x", system_get_chip_id());
+		os_sprintf(sysCfg.localAP_ssid, "ESPStation_%02x", system_get_chip_id());
 		//Default to no password
 		
 		//4, 268
