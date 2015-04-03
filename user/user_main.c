@@ -1,5 +1,12 @@
+#include "ets_sys.h"
+#include "osapi.h"
+#include "gpio.h"
+#include "os_type.h"
 #include "user_config.h"
-#include "NonVol.h"
+#include "user_interface.h"
+#include "mem.h"
+#include "espconn.h"
+
 //Tasks
 #define user_procTaskPrio        0
 #define user_procTaskQueueLen    2
@@ -24,6 +31,37 @@ uint8 pBuffer[128]; //Temporary buffer for structures
 //Timers
 os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
+
+#define scheduleCall(Function, sig, par) { system_os_task(Function, 1, user_procTaskQueue, user_procTaskQueueLen); system_os_post(1, sig, par); }
+
+//Function definitions
+
+void user_init();
+
+static void checkConnection();
+static void setupLocalAP();
+static void connectToRemoteAP();
+
+static void enableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
+static void disableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
+
+static void handleConnectionEstablished(void* pArg);
+static void handleRecievedData(void* arg, char* pData, unsigned short iDataLen);
+static void handleConnectionDropped(void* pArg);
+
+static void processCommand(struct espconn* pTarget, char* pData, uint16 iLength);
+static void processTransfer(struct espconn* pTarget, char* pData, uint16 iLength);
+
+static void UpdateLocalAPDetails();
+static void UpdateRemoteAPDetails();
+static void Reboot();
+
+static void loop(os_event_t *events);
+
+#define pinHigh() GPIO_OUTPUT_SET(2,1); os_delay_us(29);
+#define pinLow() GPIO_OUTPUT_SET(2,0); os_delay_us(29);
+
+#define midiBit(bByte, oSet) if(bByte&oSet) {pinHigh();} else{ pinLow();}
 
 void sendMidiByte(char bByte) {
 	//StartBit
@@ -72,7 +110,7 @@ enableTCPServer(uint32 iTCPPort, struct espconn * pConnection)
 
 	espconn_regist_connectcb(pConnection, handleConnectionEstablished);
 	espconn_accept(pConnection);
-	espconn_regist_time(pConnection, sysCfg.conTCPTimeout, 0);
+	espconn_regist_time(pConnection, 120, 0);
 }
 
 
@@ -82,7 +120,7 @@ handleConnectionEstablished(void* pArg)
 {
 	struct espconn * pConnection = (struct espconn*) pArg;
 	espconnClient = pConnection;
-	espconn_regist_time(pConnection, sysCfg.conTCPTimeout, 0);
+	espconn_regist_time(pConnection, 120, 0);
 	os_printf("Connection established for port: %d\n\r", pConnection->proto.tcp->local_port);
 	giDataLen = 0;
 	giDataMax = 0;
@@ -159,88 +197,68 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	char cTarget = pData[1]; //Station, AP
 	char cEntry = pData[2]; //SSID, Password
 	char* cValue = pData+3;
+	
+	char* pcTargetSSID;
+	char* pcTargetPassword;
+	if(cTarget== 's' || cTarget == 'S')
+	{
+		wifi_station_get_config(&stationConf);
+		pcTargetSSID = stationConf.ssid;
+		pcTargetPassword = stationConf.password;
+	}
+	else
+	{
+		wifi_softap_get_config(&wifiLocal);
+		pcTargetSSID = wifiLocal.ssid;
+		pcTargetPassword = wifiLocal.password;
+	}
+	os_printf("Target SSID: %s\n\r", pcTargetSSID);
+	os_printf("Target Pass: %s\n\r", pcTargetPassword);
 	if(cCommand == 'g' || cCommand == 'G')
 	{
+		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
 		char rgcOutputMessage[32];
-		if(cTarget == 'a' || cTarget == 'A')
-		{
-			if(cEntry == 'p' || cEntry == 'P')
-			{
-				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.localAP_pwd);
-			}
-			else
-			{
-				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.localAP_ssid);
-			}
-		}
-		else if(cTarget == 's' || cTarget == 'S')
-		{
-			if(cEntry == 'p' || cEntry == 'P')
-			{
-				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.station_pwd);
-			}
-			else
-			{
-				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.station_ssid);
-			}
-		}
-		else if(cTarget == 'm' || cTarget == 'M')
-		{
-			os_sprintf(rgcOutputMessage, "%d\n\r", sysCfg.conbOutputMode);
-		}
-		else
-		{
-			os_sprintf(rgcOutputMessage, "UNKNOWN\n\r", sysCfg.station_ssid);
-		}
+		os_sprintf(rgcOutputMessage, "%s\n\r", pcTarget);
 		os_printf("Responding with: %s\n\r", rgcOutputMessage);
 		espconn_sent(pTarget, rgcOutputMessage, strlen(rgcOutputMessage));
 	}
 	else if(cCommand == 's' || cCommand == 'S')
 	{
-		while(cValue[0] == ' ') ++cValue;
-		char* cValueToChange;
-		if(cTarget == 'm' || cTarget == 'M')
+		ets_wdt_disable();
+		espconn_disconnect(espconnClient);
+		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
+		os_printf("Setting %c changed from %s to %s\n\r", cEntry, pcTarget, cValue);
+		os_sprintf(pcTarget, "%s", cValue);
+		if(cTarget== 's' || cTarget == 'S')
 		{
-			uint8_t newValue = atoi(cValue);
-			os_printf("Setting changed from %d to %d\n\r", sysCfg.conbOutputMode, newValue);
-			sysCfg.conbOutputMode = newValue;
+			os_memcpy(pBuffer, &stationConf, sizeof(stationConf));
+			scheduleCall(UpdateRemoteAPDetails, 0, 0);
 		}
 		else
 		{
-			if(cTarget == 'a' || cTarget == 'A')
-			{
-				if(cEntry == 'p' || cEntry == 'P')
-				{
-					cValueToChange = sysCfg.localAP_pwd;
-				}
-				else
-				{
-					cValueToChange = sysCfg.localAP_ssid;
-				}
-			}
-			else if(cTarget == 's' || cTarget == 'S')
-			{
-				if(cEntry == 'p' || cEntry == 'P')
-				{
-					cValueToChange = sysCfg.station_pwd;
-				}
-				else
-				{
-					cValueToChange = sysCfg.station_ssid;
-				}
-			}
-			os_printf("Setting changed from %s to %s\n\r", cValueToChange, cValue);
-			os_sprintf(cValueToChange, cValue);
+			os_memcpy(pBuffer, &wifiLocal, sizeof(wifiLocal));
+			scheduleCall(UpdateLocalAPDetails, 0, 0);
 		}
-		espconn_sent(pTarget, "OK\n\r", 4);
-		CFG_Save();
-	}
-	else if(cCommand == 'r' || cCommand == 'R')
-	{
-		espconn_disconnect(espconnClient);
-		scheduleCall(Reboot, 0, 0);
+		
 	}
 }
+
+static void ICACHE_FLASH_ATTR
+UpdateLocalAPDetails()
+{
+	
+	wifi_softap_set_config((struct softap_config*)pBuffer);
+	scheduleCall(Reboot, 0, 0);
+}
+
+static void ICACHE_FLASH_ATTR
+UpdateRemoteAPDetails()
+{
+	
+	wifi_station_set_config((struct station_config*)pBuffer);
+	scheduleCall(Reboot, 0, 0);
+}
+
 
 //WifiMode
 int iRetryCount;
@@ -252,11 +270,11 @@ checkConnection()
 	{
 		os_printf("Connected OK\n\r");
 	}
-	else if(iRetryCount < 3) //Any retries left?
+	else if(iRetryCount < 2) //Any retries left?
 	{
 		++iRetryCount;
 		os_printf("Waiting for connection\n\r");
-		os_timer_arm(&tConnectionTimer,4000, false);
+		os_timer_arm(&tConnectionTimer,2000, false);
 		return;
 	}
 	else
@@ -266,11 +284,10 @@ checkConnection()
 		wifi_station_disconnect();
 		setupLocalAP();
 	}
-	os_printf("Starting servers\n\r");
+	
 	enableTCPServer(8080, &espconnCommand);
 	enableTCPServer(8081, &espconnTransfer);
 	espconn_tcp_set_max_con(1);
-	os_printf("Servers started\n\r");
 }
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
@@ -280,11 +297,10 @@ setupLocalAP()
 
 	wifi_softap_get_config(&wifiLocal);
 
-	memcpy(wifiLocal.ssid, sysCfg.localAP_ssid, strlen(sysCfg.localAP_ssid)+1);
-	wifiLocal.ssid_len = strlen(sysCfg.localAP_ssid);
-	
-	memcpy(wifiLocal.password, sysCfg.localAP_pwd, strlen(sysCfg.localAP_pwd)+1);
-	
+	os_sprintf(wifiChar, "ESPHost-%d", system_get_chip_id());
+	memcpy(wifiLocal.ssid, wifiChar, strlen(wifiChar));
+	wifiLocal.ssid_len = strlen(wifiChar);
+
 	wifiLocal.authmode = AUTH_WPA_WPA2_PSK;
 	wifi_softap_set_config(&wifiLocal);
 
@@ -302,28 +318,17 @@ setupLocalAP()
 static void ICACHE_FLASH_ATTR
 connectToRemoteAP()
 {
-	if(sysCfg.localAP_ssid[0])
-	{
-		os_printf("Starting station mode\n\r");
-		wifi_set_opmode(0x01);
-		os_printf("Starting station configuration\n\r");
-		struct station_config stationConf;
-		wifi_station_get_config(&stationConf);
-		
-		memcpy(stationConf.ssid, sysCfg.station_ssid, strlen(sysCfg.station_ssid)+1);	
-		if(sysCfg.station_pwd[0])
-			memcpy(stationConf.password, sysCfg.station_pwd, strlen(sysCfg.station_pwd)+1);
-		else
-			stationConf.password[0] = 0;
-		
-		
-		stationConf.bssid_set = 0;
-		wifi_station_set_config(&stationConf);
-		os_printf("Starting Connection to %s with %s\n\r", stationConf.ssid, stationConf.password);
-		wifi_station_connect();
-		os_printf("Starting DHCP Service\n\r");
-		wifi_station_dhcpc_start();
-	}
+	os_printf("Starting station mode\n\r");
+	wifi_set_opmode(0x01);
+	os_printf("Starting station configuration\n\r");
+	struct station_config stationConf;
+	wifi_station_get_config(&stationConf);
+	stationConf.bssid_set = 0;
+	wifi_station_set_config(&stationConf);
+	os_printf("Starting Connection\n\r");
+	wifi_station_connect();
+	os_printf("Starting DHCP Service\n\r");
+	wifi_station_dhcpc_start();
 	os_timer_disarm(&tConnectionTimer);
 	os_timer_setfn(&tConnectionTimer, (os_timer_func_t*) checkConnection, 0);
 	os_timer_arm(&tConnectionTimer, 4000, false);
@@ -335,24 +340,7 @@ void ICACHE_FLASH_ATTR
 user_init()
 {
 	//Enable UART at 115200 BAUD
-	uart_div_modify(0, UART_CLK_FREQ / 115200);//makesysCfg.cfg_BaudRate);
-	ets_wdt_disable();
-	CFG_Load();
-	
-	os_printf("Loading complete\n\r");
-	if(sysCfg.station_ssid[0])
-		os_printf("Station SSID: %s\n\r", sysCfg.station_ssid);
-	if(sysCfg.station_pwd[0])
-		os_printf("Station PWD: %s\n\r", sysCfg.station_pwd);
-	if(sysCfg.localAP_ssid[0])
-		os_printf("LocalAP SSID: %s\n\r", sysCfg.localAP_ssid);
-	if(sysCfg.localAP_pwd[0])
-		os_printf("LocalAP PWD: %s\n\r", sysCfg.localAP_pwd);
-	os_printf("Baud: %d\n\r", sysCfg.cfg_BaudRate);
-	os_printf("OutMode: %d\n\r", sysCfg.conbOutputMode);
-	os_printf("Timeout: %d\n\r", sysCfg.conTCPTimeout);
-	
-	uart_div_modify(0, UART_CLK_FREQ / 115200);//makesysCfg.cfg_BaudRate);
+	uart_div_modify(0, UART_CLK_FREQ / 115200);
 	os_printf("UART Enabled\n\r");
 	
 	//Setup GPIO and data buffer
@@ -364,11 +352,13 @@ user_init()
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) loop, 0);
 	os_timer_arm(&tStatusTimer, 10000, true);
 	os_printf("Timer set\n\r");
-	
 	//Start os task
 	system_os_task(connectToRemoteAP, 0, user_procTaskQueue, user_procTaskQueueLen);
 	iRetryCount = 0;
 	
+	//Ensure watchdogs are running
+	os_printf("WDT about to Enable\n\r");
+	ets_wdt_disable();
 	os_printf("OS Starting\n\r");
 	system_os_post(0, 0, 0); //START SYSTEM
 }
