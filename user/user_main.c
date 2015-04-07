@@ -159,68 +159,88 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	char cTarget = pData[1]; //Station, AP
 	char cEntry = pData[2]; //SSID, Password
 	char* cValue = pData+3;
-	
-	char* pcTargetSSID;
-	char* pcTargetPassword;
-	if(cTarget== 's' || cTarget == 'S')
-	{
-		wifi_station_get_config(&stationConf);
-		pcTargetSSID = stationConf.ssid;
-		pcTargetPassword = stationConf.password;
-	}
-	else
-	{
-		wifi_softap_get_config(&wifiLocal);
-		pcTargetSSID = wifiLocal.ssid;
-		pcTargetPassword = wifiLocal.password;
-	}
-	os_printf("Target SSID: %s\n\r", pcTargetSSID);
-	os_printf("Target Pass: %s\n\r", pcTargetPassword);
 	if(cCommand == 'g' || cCommand == 'G')
 	{
-		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
 		char rgcOutputMessage[32];
-		os_sprintf(rgcOutputMessage, "%s\n\r", pcTarget);
+		if(cTarget == 'a' || cTarget == 'A')
+		{
+			if(cEntry == 'p' || cEntry == 'P')
+			{
+				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.localAP_pwd);
+			}
+			else
+			{
+				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.localAP_ssid);
+			}
+		}
+		else if(cTarget == 's' || cTarget == 'S')
+		{
+			if(cEntry == 'p' || cEntry == 'P')
+			{
+				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.station_pwd);
+			}
+			else
+			{
+				os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.station_ssid);
+			}
+		}
+		else if(cTarget == 'm' || cTarget == 'M')
+		{
+			os_sprintf(rgcOutputMessage, "%d\n\r", sysCfg.conbOutputMode);
+		}
+		else
+		{
+			os_sprintf(rgcOutputMessage, "UNKNOWN\n\r", sysCfg.station_ssid);
+		}
 		os_printf("Responding with: %s\n\r", rgcOutputMessage);
 		espconn_sent(pTarget, rgcOutputMessage, strlen(rgcOutputMessage));
 	}
 	else if(cCommand == 's' || cCommand == 'S')
 	{
-		ets_wdt_disable();
-		espconn_disconnect(espconnClient);
-		char* pcTarget = cEntry == 's' ? pcTargetSSID : pcTargetPassword;
-		os_printf("Setting %c changed from %s to %s\n\r", cEntry, pcTarget, cValue);
-		os_sprintf(pcTarget, "%s", cValue);
-		if(cTarget== 's' || cTarget == 'S')
+		while(cValue[0] == ' ') ++cValue;
+		char* cValueToChange;
+		if(cTarget == 'm' || cTarget == 'M')
 		{
-			os_memcpy(pBuffer, &stationConf, sizeof(stationConf));
-			scheduleCall(UpdateRemoteAPDetails, 0, 0);
+			uint8_t newValue = atoi(cValue);
+			os_printf("Setting changed from %d to %d\n\r", sysCfg.conbOutputMode, newValue);
+			sysCfg.conbOutputMode = newValue;
 		}
 		else
 		{
-			os_memcpy(pBuffer, &wifiLocal, sizeof(wifiLocal));
-			scheduleCall(UpdateLocalAPDetails, 0, 0);
+			if(cTarget == 'a' || cTarget == 'A')
+			{
+				if(cEntry == 'p' || cEntry == 'P')
+				{
+					cValueToChange = sysCfg.localAP_pwd;
+				}
+				else
+				{
+					cValueToChange = sysCfg.localAP_ssid;
+				}
+			}
+			else if(cTarget == 's' || cTarget == 'S')
+			{
+				if(cEntry == 'p' || cEntry == 'P')
+				{
+					cValueToChange = sysCfg.station_pwd;
+				}
+				else
+				{
+					cValueToChange = sysCfg.station_ssid;
+				}
+			}
+			os_printf("Setting changed from %s to %s\n\r", cValueToChange, cValue);
+			os_sprintf(cValueToChange, cValue);
 		}
-		
+		espconn_sent(pTarget, "OK\n\r", 4);
+		CFG_Save();
+	}
+	else if(cCommand == 'r' || cCommand == 'R')
+	{
+		espconn_disconnect(espconnClient);
+		scheduleCall(Reboot, 0, 0);
 	}
 }
-
-static void ICACHE_FLASH_ATTR
-UpdateLocalAPDetails()
-{
-	
-	wifi_softap_set_config((struct softap_config*)pBuffer);
-	scheduleCall(Reboot, 0, 0);
-}
-
-static void ICACHE_FLASH_ATTR
-UpdateRemoteAPDetails()
-{
-	
-	wifi_station_set_config((struct station_config*)pBuffer);
-	scheduleCall(Reboot, 0, 0);
-}
-
 
 //WifiMode
 int iRetryCount;
@@ -246,10 +266,11 @@ checkConnection()
 		wifi_station_disconnect();
 		setupLocalAP();
 	}
-	
+	os_printf("Starting servers\n\r");
 	enableTCPServer(8080, &espconnCommand);
 	enableTCPServer(8081, &espconnTransfer);
 	espconn_tcp_set_max_con(1);
+	os_printf("Servers started\n\r");
 }
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
@@ -305,6 +326,21 @@ user_init()
 {
 	//Enable UART at 115200 BAUD
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
+	CFG_Load();
+	
+	os_printf("Loading complete\n\r");
+	if(sysCfg.station_ssid[0])
+		os_printf("Station SSID: %s\n\r", sysCfg.station_ssid);
+	if(sysCfg.station_pwd[0])
+		os_printf("Station PWD: %s\n\r", sysCfg.station_pwd);
+	if(sysCfg.localAP_ssid[0])
+		os_printf("LocalAP SSID: %s\n\r", sysCfg.localAP_ssid);
+	if(sysCfg.localAP_pwd[0])
+		os_printf("LocalAP PWD: %s\n\r", sysCfg.localAP_pwd);
+	os_printf("Baud: %d\n\r", sysCfg.cfg_BaudRate);
+	os_printf("OutMode: %d\n\r", sysCfg.conbOutputMode);
+	os_printf("Timeout: %d\n\r", sysCfg.conTCPTimeout);
+	
 	os_printf("UART Enabled\n\r");
 	
 	//Setup GPIO and data buffer
