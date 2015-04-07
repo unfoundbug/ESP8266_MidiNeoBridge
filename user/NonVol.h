@@ -4,7 +4,7 @@
 #include "os_type.h"
 #include "user_config.h"
 
-#define CFG_HOLDER	0x6A8D7335	/* Random 32 bit integer, magic marker for structure validation */
+#define CFG_HOLDER	0x6A8D73A5	/* Random 32 bit integer, magic marker for structure validation */
 
 #define CFGLOC_C1 40
 #define CFGLOC_C2 41

@@ -41,11 +41,11 @@ CFG_Load()
 	spi_flash_read((CFGLOC_Fl) * SPI_FLASH_SEC_SIZE,
 				   (uint32 *)&saveFlag, sizeof(SAVE_FLAG));
 	if (saveFlag.flag == 0) {
-		os_printf("About to read %d bytes at %d\n\r", sizeof(SYSCFG), (CFGLOC_C1) * SPI_FLASH_SEC_SIZE);
+		os_printf("About to read %d bytes at %d\n\r", sizeof(SYSCFG), (CFGLOC_C2) * SPI_FLASH_SEC_SIZE);
 		spi_flash_read((CFGLOC_C1) * SPI_FLASH_SEC_SIZE,
 					   (uint32 *)&sysCfg, sizeof(SYSCFG));
 	} else {
-		os_printf("About to read %d bytes at %d\n\r", sizeof(SYSCFG), (CFGLOC_C2) * SPI_FLASH_SEC_SIZE);
+		os_printf("About to read %d bytes at %d\n\r", sizeof(SYSCFG), (CFGLOC_C1) * SPI_FLASH_SEC_SIZE);
 		spi_flash_read((CFGLOC_C2) * SPI_FLASH_SEC_SIZE,
 					   (uint32 *)&sysCfg, sizeof(SYSCFG));
 	}
