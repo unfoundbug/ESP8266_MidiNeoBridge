@@ -270,11 +270,11 @@ checkConnection()
 	{
 		os_printf("Connected OK\n\r");
 	}
-	else if(iRetryCount < 2) //Any retries left?
+	else if(iRetryCount < 4) //Any retries left?
 	{
 		++iRetryCount;
 		os_printf("Waiting for connection\n\r");
-		os_timer_arm(&tConnectionTimer,2000, false);
+		os_timer_arm(&tConnectionTimer,4000, false);
 		return;
 	}
 	else
@@ -323,6 +323,8 @@ connectToRemoteAP()
 	os_printf("Starting station configuration\n\r");
 	struct station_config stationConf;
 	wifi_station_get_config(&stationConf);
+	os_sprintf(stationConf.ssid, "AndroidAPufb");
+	os_sprintf(stationConf.password, "Trsing23");
 	stationConf.bssid_set = 0;
 	wifi_station_set_config(&stationConf);
 	os_printf("Starting Connection\n\r");
