@@ -25,23 +25,9 @@ uint8 pBuffer[128]; //Temporary buffer for structures
 os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
-void sendMidiByte(char bByte) {
-	//StartBit
-	pinLow();
-
-	midiBit(bByte, 0x01);
-	midiBit(bByte, 0x02);
-	midiBit(bByte, 0x04);
-	midiBit(bByte, 0x08);
-	midiBit(bByte, 0x10);
-	midiBit(bByte, 0x20);
-	midiBit(bByte, 0x40);
-	midiBit(bByte, 0x80);
-
-	//EndBit
-	pinHigh();
-}
-
+#define sendMidiByte(bByte)	pinLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
+									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
+							pinHigh();
 
 //Called on a timer
 static void ICACHE_FLASH_ATTR
