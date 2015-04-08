@@ -113,6 +113,7 @@ handleRecievedData(void* arg, char* pData, unsigned short iLength)
 		processTransfer(pConnection, pData, iLength);
 	}
 }
+
 static void Reboot()
 {
 	system_restart();
@@ -238,7 +239,7 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	else if(cCommand == 'r' || cCommand == 'R')
 	{
 		espconn_disconnect(espconnClient);
-		scheduleCall(Reboot, 0, 0);
+		scheduleCallTime(Reboot, 250);
 	}
 }
 

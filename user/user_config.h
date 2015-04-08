@@ -24,6 +24,9 @@ static void handleConnectionDropped(void* pArg);
 static void processCommand(struct espconn* pTarget, char* pData, uint16 iLength);
 static void processTransfer(struct espconn* pTarget, char* pData, uint16 iLength);
 
+static void UpdateRemoteAPDetails();
+static void UpdateLocalAPDetails();
+
 static void Reboot();
 
 static void loop(os_event_t *events);
@@ -34,3 +37,6 @@ static void loop(os_event_t *events);
 #define midiBit(bByte, oSet) if(bByte&oSet) {pinHigh();} else{ pinLow();}
 
 #define scheduleCall(Function, sig, par) { system_os_task(Function, 1, user_procTaskQueue, user_procTaskQueueLen); system_os_post(1, sig, par); }
+
+os_timer_t tScheduler;
+#define scheduleCallTime(Function, time) { 	os_timer_disarm(&tScheduler);	os_timer_setfn(&tScheduler, (os_timer_func_t*) Function, 0);	os_timer_arm(&tScheduler, time, true);}
