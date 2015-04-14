@@ -143,8 +143,13 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 	struct station_config stationConf;
 	
 	char cCommand = pData[0]; //Get, Set, Reset
-	char cTarget = pData[1]; //Station, AP
-	char cEntry = pData[2]; //SSID, Password
+	char cTarget = 0; //Station, AP
+	char cEntry = 0; //SSID, Password
+	if(iLength >= 3)
+	{
+		cTarget = pData[1]; //Station, AP
+		cEntry = pData[2]; //SSID, Password
+	}
 	char* cValue = pData+3;
 	if(cCommand == 'g' || cCommand == 'G')
 	{
@@ -227,6 +232,12 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 		espconn_disconnect(espconnClient);
 		scheduleCallTime(Reboot, 250);
 	}
+	else if(cCommand == 'c' || cCommand == 'C')
+	{
+		sysCfg.cfg_holder = 0; //Forcibly reset all settings
+		CFG_Save();
+		CFG_Save();
+	}
 }
 
 //WifiMode
@@ -264,14 +275,33 @@ setupLocalAP()
 {
 	struct softap_config wifiLocal;
 	char wifiChar[33];
-
+	wifi_set_opmode(0x02);
 	wifi_softap_get_config(&wifiLocal);
-
-	os_sprintf(wifiChar, "ESPHost-%d", system_get_chip_id());
-	memcpy(wifiLocal.ssid, wifiChar, strlen(wifiChar));
-	wifiLocal.ssid_len = strlen(wifiChar);
-
-	wifiLocal.authmode = AUTH_WPA_WPA2_PSK;
+	
+	if(sysCfg.localAP_pwd[0])
+	{
+		os_printf("LocalPassword: %s\n\r", sysCfg.localAP_pwd);
+		os_sprintf(wifiLocal.password, sysCfg.localAP_pwd);
+		wifiLocal.authmode = AUTH_WPA_WPA2_PSK;
+	}
+	else
+	{
+		wifiLocal.authmode = AUTH_OPEN;
+		os_printf("Default Password\n\r");
+		wifiLocal.password[0] = 0; //No Password
+	}
+	
+	if(sysCfg.localAP_ssid[0])
+	{
+		os_printf("LocalSSID: %s\n\r", sysCfg.localAP_ssid);
+		os_sprintf(wifiLocal.ssid, sysCfg.localAP_ssid);
+		wifiLocal.ssid_len = strlen(wifiLocal.ssid);
+	}
+	else
+	{
+		os_printf("Default SSID\n\r");
+	}
+	
 	wifi_softap_set_config(&wifiLocal);
 
 	wifi_softap_dhcps_stop();
@@ -289,6 +319,7 @@ static void ICACHE_FLASH_ATTR
 connectToRemoteAP()
 {
 	os_printf("Starting station mode\n\r");
+	//Set Remote mode, to allow settings update
 	wifi_set_opmode(0x01);
 	os_printf("Starting station configuration\n\r");
 	struct station_config stationConf;
@@ -305,6 +336,9 @@ connectToRemoteAP()
 	os_timer_setfn(&tConnectionTimer, (os_timer_func_t*) checkConnection, 0);
 	os_timer_arm(&tConnectionTimer, 4000, false);
 	os_printf("Waiting for connection\n\r");
+	//Restart mode, not sure if this helps
+	wifi_set_opmode(0x01);
+	
 }
 
 //Init function 
