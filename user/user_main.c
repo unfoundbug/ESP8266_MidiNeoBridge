@@ -324,8 +324,22 @@ connectToRemoteAP()
 	os_printf("Starting station configuration\n\r");
 	struct station_config stationConf;
 	wifi_station_get_config(&stationConf);
-	os_sprintf(stationConf.ssid, "AndroidAPufb");
-	os_sprintf(stationConf.password, "Trsing23");
+	if(sysCfg.station_pwd[0])
+	{
+		os_printf("Remote Password: %s\n\r", sysCfg.station_pwd);
+		os_sprintf(stationConf.password, sysCfg.station_pwd);
+	}
+	else
+	{
+		os_printf("Default remote Password\n\r");
+		stationConf.password[0] = 0; //No Password
+	}
+	
+	if(sysCfg.station_ssid[0])
+	{
+		os_printf("Remote SSID: %s\n\r", sysCfg.station_ssid);
+		os_sprintf(stationConf.ssid, sysCfg.station_ssid);
+	}
 	stationConf.bssid_set = 0;
 	wifi_station_set_config(&stationConf);
 	os_printf("Starting Connection\n\r");

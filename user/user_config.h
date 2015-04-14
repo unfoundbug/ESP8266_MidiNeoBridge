@@ -53,3 +53,19 @@ static void loop(os_event_t *events);
 
 os_timer_t tScheduler;
 #define scheduleCallTime(Function, time) { 	os_timer_disarm(&tScheduler);	os_timer_setfn(&tScheduler, (os_timer_func_t*) Function, 0);	os_timer_arm(&tScheduler, time, true);}
+
+//Gets the current run time in S
+#define currentRunTime() { return (system_get_rtc_time()/(1000/system_rtc_clock_cali_proc());}
+
+uint32 gi_RemoteStation_EndTime;
+uint32 gi_Local_AP_EndTime;
+
+enum {
+	STATE_STARTREMOTE,
+	STATE_REMOTE_AWAITING,
+	STATE_REMOTE_CONNECTED,
+	STATE_STARTLOCAL,
+	STATE_LOCAL_NOCOMMMS,
+	STATE_LOCAL_COMMS
+} eCurrentLaunchState;
+
