@@ -1,5 +1,7 @@
 #include "user_config.h"
 #include "NonVol.h"
+#include "application.h"
+
 //Tasks
 #define user_procTaskPrio        0
 #define user_procTaskQueueLen    2
@@ -31,16 +33,77 @@ os_timer_t tStatusTimer;
 
 //Called on a timer
 static void ICACHE_FLASH_ATTR
-loop(os_event_t *events)
+StateEngine(os_event_t *events)
 {
 	struct ip_info addrInfo;
-	if(wifi_get_ip_info( 1, &addrInfo))
+	os_printf("State engine cycling\n\r");
+	switch (eCurrentLaunchState)
 	{
-		os_printf("Connection Status: \n\r");
-		os_printf("IP: %d.%d.%d.%d\n\r",  IP2STR(&addrInfo.ip.addr)); 
-		os_printf("netmask: %d.%d.%d.%d\n\r", IP2STR(&addrInfo.netmask.addr));
-		os_printf("gw: %d.%d.%d.%d\n\r\n\r",  IP2STR(&addrInfo.gw.addr));
-
+		case STATE_STARTREMOTE:
+		{
+			os_printf("Starting connection to remote wifi\n\r");
+			connectToRemoteAP();
+			os_printf("Connection Started\n\r");
+			gi_RemoteStation_EndTime = currentRunTime() + CONNECTION_TIMEOUT;
+			os_printf("End time got\n\r");
+			eCurrentLaunchState = STATE_REMOTE_AWAITING;
+			os_printf("State Done\n\r");
+		}break;
+		case STATE_REMOTE_AWAITING:
+		{
+			addrInfo.ip.addr = 0;
+			if(!wifi_get_ip_info( 0, &addrInfo))
+			{
+				os_printf("Unable to get IP details\n\r");
+				return;
+			}
+			else
+			{
+				os_printf("Got IP Details\n\r");				
+			}
+			if(addrInfo.ip.addr != 0) //Connection
+			{
+				eCurrentLaunchState = STATE_REMOTE_CONNECTED;
+				gi_RemoteStation_EndTime = currentRunTime() + CONNECTION_TIMEOUT;
+				os_printf("Connected to remote wifi\n\r");
+				os_printf("IP: %d.%d.%d.%d\n\r",  IP2STR(&addrInfo.ip.addr)); 
+				os_printf("netmask: %d.%d.%d.%d\n\r", IP2STR(&addrInfo.netmask.addr));
+				os_printf("gw: %d.%d.%d.%d\n\r\n\r",  IP2STR(&addrInfo.gw.addr));
+			}
+			else //No Connection
+			{
+				if(gi_RemoteStation_EndTime < currentRunTime())
+				{
+					eCurrentLaunchState = STATE_STARTLOCAL;
+				}
+			}
+		}break;
+		case STATE_REMOTE_CONNECTED:
+		{
+			os_printf("Connection Established\n\r");
+			if(	gi_RemoteStation_EndTime < currentRunTime())
+			{
+				
+			}
+			//If we have lost connection, restart
+		}break;
+		case STATE_STARTLOCAL:
+		{
+			os_printf("Starting local wifi host\n\r");
+			setupLocalAP();
+			eCurrentLaunchState = STATE_LOCAL_NOCOMMMS;
+			gi_Local_AP_EndTime = currentRunTime() + SETUP_TIMEOUT; //After 10 minutes reset if there we NO comms
+		}break;
+		case STATE_LOCAL_NOCOMMMS:
+		{
+			if(gi_Local_AP_EndTime < currentRunTime())
+			{
+				scheduleCallTime(Reboot, 250);
+			}
+		}break;
+		case STATE_LOCAL_COMMS:
+		{
+		}break;
 	}
 }
 
@@ -270,6 +333,7 @@ checkConnection()
 	espconn_tcp_set_max_con(1);
 	os_printf("Servers started\n\r");
 }
+
 static void ICACHE_FLASH_ATTR
 setupLocalAP()
 {
@@ -315,6 +379,7 @@ setupLocalAP()
 
 	wifi_set_opmode(0x02);
 }
+
 static void ICACHE_FLASH_ATTR
 connectToRemoteAP()
 {
@@ -346,10 +411,6 @@ connectToRemoteAP()
 	wifi_station_connect();
 	os_printf("Starting DHCP Service\n\r");
 	wifi_station_dhcpc_start();
-	os_timer_disarm(&tConnectionTimer);
-	os_timer_setfn(&tConnectionTimer, (os_timer_func_t*) checkConnection, 0);
-	os_timer_arm(&tConnectionTimer, 4000, false);
-	os_printf("Waiting for connection\n\r");
 	//Restart mode, not sure if this helps
 	wifi_set_opmode(0x01);
 	
@@ -384,16 +445,9 @@ user_init()
 	gpDataBuffer = (char*)os_malloc(100);
 	os_printf("Buffer Allocated\n\r");
 	os_timer_disarm(&tStatusTimer);
-	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) loop, 0);
-	os_timer_arm(&tStatusTimer, 10000, true);
+	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
+	os_timer_arm(&tStatusTimer, 2000, true);
 	os_printf("Timer set\n\r");
-	//Start os task
-	system_os_task(connectToRemoteAP, 0, user_procTaskQueue, user_procTaskQueueLen);
-	iRetryCount = 0;
-	
-	//Ensure watchdogs are running
-	os_printf("WDT about to Enable\n\r");
-	ets_wdt_disable();
-	os_printf("OS Starting\n\r");
-	system_os_post(0, 0, 0); //START SYSTEM
+	os_printf("RTC calibration at %d\n\r", system_rtc_clock_cali_proc());
+	eCurrentLaunchState = STATE_STARTREMOTE;
 }
