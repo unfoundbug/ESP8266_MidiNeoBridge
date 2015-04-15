@@ -5,7 +5,7 @@
 
 void user_init();
 
-static void checkConnection();
+static void startServers();
 static void setupLocalAP();
 static void connectToRemoteAP();
 
@@ -53,7 +53,7 @@ os_timer_t tScheduler;
 #define currentRunTime() (system_get_time()/ (uint32_t)1000000)
 
 //Time to wait before giving up on the remote AP
-#define CONNECTION_TIMEOUT 30
+#define CONNECTION_TIMEOUT 10
 //Time to host the local AP to accept changes before retrying the remote
 #define SETUP_TIMEOUT 600
 

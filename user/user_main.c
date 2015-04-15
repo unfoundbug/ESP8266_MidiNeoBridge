@@ -306,27 +306,8 @@ processCommand(struct espconn* pTarget, char* pData, uint16 iLength)
 //WifiMode
 int iRetryCount;
 static void ICACHE_FLASH_ATTR
-checkConnection()
+startServers()
 {
-	os_printf("Checking connection\n\r");
-	if(wifi_station_get_connect_status() == STATION_GOT_IP)  //Connected
-	{
-		os_printf("Connected OK\n\r");
-	}
-	else if(iRetryCount < 4) //Any retries left?
-	{
-		++iRetryCount;
-		os_printf("Waiting for connection\n\r");
-		os_timer_arm(&tConnectionTimer,4000, false);
-		return;
-	}
-	else
-	{
-		os_printf("Starting AP mode\n\r");
-		wifi_station_dhcpc_stop();
-		wifi_station_disconnect();
-		setupLocalAP();
-	}
 	os_printf("Starting servers\n\r");
 	enableTCPServer(8080, &espconnCommand);
 	enableTCPServer(8081, &espconnTransfer);
@@ -378,6 +359,7 @@ setupLocalAP()
 	wifi_softap_dhcps_start();
 
 	wifi_set_opmode(0x02);
+	startServers();
 }
 
 static void ICACHE_FLASH_ATTR
@@ -413,7 +395,7 @@ connectToRemoteAP()
 	wifi_station_dhcpc_start();
 	//Restart mode, not sure if this helps
 	wifi_set_opmode(0x01);
-	
+	startServers();
 }
 
 //Init function 
