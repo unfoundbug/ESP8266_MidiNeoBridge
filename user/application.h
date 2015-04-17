@@ -2,22 +2,15 @@
 #define APPLICATION_H_
 
 #include "user_config.h"
+#include "NonVol.h"
+#include "Port_Transfer.h"
+#include "Port_Command.h"
 
 void user_init();
 
 static void startServers();
 static void setupLocalAP();
 static void connectToRemoteAP();
-
-static void enableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
-static void disableTCPServer(uint32 iTCPPort, struct espconn* pConnection);
-
-static void handleConnectionEstablished(void* pArg);
-static void handleRecievedData(void* arg, char* pData, unsigned short iDataLen);
-static void handleConnectionDropped(void* pArg);
-
-static void processCommand(struct espconn* pTarget, char* pData, uint16 iLength);
-static void processTransfer(struct espconn* pTarget, char* pData, uint16 iLength);
 
 static void UpdateRemoteAPDetails();
 static void UpdateLocalAPDetails();
@@ -43,6 +36,7 @@ static void StateEngine(os_event_t *events);
 							pinLow();
 #define neoByte(byte)     neoBit(bByte, 0x01); neoBit(bByte, 0x02); neoBit(bByte, 0x04); neoBit(bByte, 0x08); \
 						  neoBit(bByte, 0x10); neoBit(bByte, 0x20); neoBit(bByte, 0x40); neoBit(bByte, 0x80);
+						
 						  
 #define scheduleCall(Function, sig, par) { system_os_task(Function, 1, user_procTaskQueue, user_procTaskQueueLen); system_os_post(1, sig, par); }
 
@@ -53,12 +47,16 @@ os_timer_t tScheduler;
 #define currentRunTime() (system_get_time()/ (uint32_t)1000000)
 
 //Time to wait before giving up on the remote AP
-#define CONNECTION_TIMEOUT 10
+#define CONNECTION_TIMEOUT 15
 //Time to host the local AP to accept changes before retrying the remote
-#define SETUP_TIMEOUT 600
+#define SETUP_TIMEOUT 60
+
+//Time between Broadcast Attempts
+#define BROADCAST_TIMEOUT 15
 
 uint32 gi_RemoteStation_EndTime;
 uint32 gi_Local_AP_EndTime;
+uint32 gi_Broadcast_NextTime;
 
 enum {
 	STATE_STARTREMOTE,

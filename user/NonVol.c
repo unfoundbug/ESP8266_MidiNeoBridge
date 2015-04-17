@@ -1,10 +1,4 @@
-
-#include "ets_sys.h"
-#include "os_type.h"
-#include "mem.h"
-#include "user_interface.h"
-#include "user_config.h"
-
+#include "NonVol.h"
 SYSCFG sysCfg;
 SAVE_FLAG saveFlag;
 
