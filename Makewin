@@ -18,8 +18,8 @@ XTENSA_TOOLS_ROOT ?= C:\Esp8266\xtensa-lx106-elf\bin
 SDK_BASE	?= C:\Esp8266\ESP8266_SDK
 
 #Esptool.py path and port
-ESPTOOL		?= ../../esptool-py/esptool.py
-ESPPORT		?= /dev/ttyS3
+ESPTOOL		?= python C:\Esp8266\esptool\esptool.py
+ESPPORT		?= COM4
 
 # name for the target project
 TARGET		= app
