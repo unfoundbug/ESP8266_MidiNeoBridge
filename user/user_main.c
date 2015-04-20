@@ -20,21 +20,19 @@ uint8 pBuffer[128]; //Temporary buffer for structures
 os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
-
 //Called on a timers
 static void ICACHE_FLASH_ATTR
 StateEngine(os_event_t *events)
 {
 	struct ip_info addrInfo;
 	uint32 uiCurrentTime = currentRunTime();
-	os_printf("State engine cycling\n\r");
 	switch (eCurrentLaunchState)
 	{
 		case STATE_STARTREMOTE:
 		{
 			os_printf("Starting connection to remote wifi\n\r");
 			connectToRemoteAP();
-			gi_RemoteStation_EndTime = uiCurrentTime + CONNECTION_TIMEOUT;
+			gi_RemoteStation_EndTime = uiCurrentTime + 30 + CONNECTION_TIMEOUT;
 			eCurrentLaunchState = STATE_REMOTE_AWAITING;
 			
 		}break;
@@ -67,10 +65,6 @@ StateEngine(os_event_t *events)
 		case STATE_REMOTE_CONNECTED:
 		{
 			os_printf("Connection Established\n\r");
-			if(	gi_RemoteStation_EndTime < uiCurrentTime)
-			{
-				
-			}
 			//If we have lost connection, restart
 		}break;
 		case STATE_STARTLOCAL:
@@ -85,7 +79,7 @@ StateEngine(os_event_t *events)
 		{
 			if(gi_Local_AP_EndTime < uiCurrentTime)
 			{
-				scheduleCallTime(Reboot, 250);
+				//scheduleCallTime(Reboot, 250);
 			}
 		}break;
 		case STATE_LOCAL_COMMS:

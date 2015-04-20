@@ -2,8 +2,25 @@
 #include "NonVol.h"
 //CommandTransfer socket
 struct espconn espconnCommand;
+struct espconn* espconnClient;
 extern SYSCFG sysCfg;
-
+void ScanCallback(void* arg, STATUS status)
+{
+	char rgcOutString[64];
+	os_printf("Scan callback %d\n\r", status);
+	struct bss_info *bss = (struct bss_info*) arg;
+	if(status == OK)
+	{
+			while(bss)
+			{
+				uint8 bssid[6];
+				os_sprintf(rgcOutString, "Found AP ssid: %s(%d)\n\r", bss->ssid, bss->channel);
+				espconn_sent(espconnClient, rgcOutString, strlen(rgcOutString));
+				os_printf(rgcOutString);
+				bss = bss->next.stqe_next;
+			}
+	}
+}
 void ICACHE_FLASH_ATTR
 InitCommandServer(uint32 port)
 {
@@ -151,6 +168,12 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 		sysCfg.cfg_holder = 0; //Forcibly reset all settings
 		CFG_Save();
 		CFG_Save();
+	}
+	else if(cCommand == 'a' || cCommand == 'A')
+	{
+		espconnClient = pConnection;
+		if(!wifi_station_scan(0, ScanCallback))
+			os_printf("Failed to start scan\n\r");
 	}
 	else if(cCommand == 'r' || cCommand == 'R')
 	{
