@@ -64,7 +64,6 @@ StateEngine(os_event_t *events)
 		}break;
 		case STATE_REMOTE_CONNECTED:
 		{
-			os_printf("Connection Established\n\r");
 			//If we have lost connection, restart
 		}break;
 		case STATE_STARTLOCAL:
@@ -93,20 +92,24 @@ StateEngine(os_event_t *events)
 			os_printf("Sending Broadcast\n\r");
 			//Send broadcast
 			gi_Broadcast_NextTime = uiCurrentTime + BROADCAST_TIMEOUT;
-/*			memset(&espconnBroadcast, 0, sizeof( struct espconn ));			
-			espconnBroadcast.type = ESPCONN_UDP;
-			//espconnBroadcast.proto.udp = (struct _esp_udp *) os_malloc(sizeof(struct _esp_udp));
-			espconnBroadcast.proto.udp->remote_port = 8282;
-			espconnBroadcast.proto.udp->remote_ip[0] = 192;
-			espconnBroadcast.proto.udp->remote_ip[1] = 168;
-			espconnBroadcast.proto.udp->remote_ip[2] = 255;
-			espconnBroadcast.proto.udp->remote_ip[3] = 255;
+			
+			if(!espconnBroadcast.proto.udp)
+			{
+				espconnBroadcast.proto.udp = (struct _esp_udp *) os_malloc(sizeof(struct _esp_udp));
+				espconnBroadcast.type = ESPCONN_UDP;
+				espconnBroadcast.proto.udp->remote_port = 8282;
+				espconnBroadcast.proto.udp->remote_ip[0] = 172;
+				espconnBroadcast.proto.udp->remote_ip[1] = 16;
+				espconnBroadcast.proto.udp->remote_ip[2] = 0;
+				espconnBroadcast.proto.udp->remote_ip[3] = 255;			
+				
+			}
 			if(espconn_create(&espconnBroadcast))
 			{
 				os_printf("Created\n\r");
 				espconn_sent(&espconnBroadcast, "AlivePingHere", sizeof("AlivePingHere"));
 				os_printf("Sent\n\r");
-			}*/
+			}
 			
 		}
 	}
@@ -238,9 +241,9 @@ user_init()
 	gpio_init();
 	os_printf("GPIO Enabled\n\r");
 	
-	
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
-
+	
+	
 	os_timer_disarm(&tStatusTimer);
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
 	os_timer_arm(&tStatusTimer, 2000, true);

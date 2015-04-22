@@ -31,7 +31,7 @@ enableTransferServer(uint32 iTCPPort)
 	}
 	else
 	{
-		gpDataBuffer = (char*)os_malloc(100);
+		gpDataBuffer = (char*)os_malloc(2048 + 2 + 1); //Data + size + tempo
 		os_printf("Buffer Allocated\n\r");
 	}
 	espconn_create(&espconnTransfer);
@@ -74,9 +74,10 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 {
 		char* pDataToRead = pData;
 		unsigned short iToRead = iLength;
+		uint32_t usPerBeat;
 		if(giDataMax == 0)
 		{
-			giDataMax = ((uint16*)pData)[0];
+			giDataMax = (pData[0] << 8) | pData[1];
 			os_printf("New max length: %d\n\r", giDataMax);
 			pDataToRead = pData + 2;
 			iToRead -= 2;
@@ -86,12 +87,16 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		if(giDataLen == giDataMax)
 		{
 			os_printf("SendingData");
-			uint16 i;
+			char iBPM = gpDataBuffer[0];
+			usPerBeat = 1000000 / iBPM;
+			
+			os_printf("Starting to play %d bytes at %dbpm, with %d us per beat\n\r", giDataMax - 1, iBPM, usPerBeat);
+			/*
 			for(i = 0; i < giDataMax; ++i)
 			{
 				sendMidiByte(gpDataBuffer[i]);
 			}
-
+			*/
 			giDataLen = 0;
 			giDataMax = 0;
 			os_printf("Packet Complete\n\r");
