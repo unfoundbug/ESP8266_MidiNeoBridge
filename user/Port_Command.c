@@ -90,7 +90,11 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 	if(cCommand == 'g' || cCommand == 'G')
 	{
 		char rgcOutputMessage[32];
-		if(cTarget == 'a' || cTarget == 'A')
+		if(cTarget == 'i' || cTarget == 'I' )
+		{
+			os_sprintf(rgcOutputMessage, "%s\n\r", sysCfg.identifier);
+		}
+		else if(cTarget == 'a' || cTarget == 'A')
 		{
 			if(cEntry == 'p' || cEntry == 'P')
 			{
@@ -159,6 +163,10 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 				{
 					cValueToChange = sysCfg.station_ssid;
 				}
+			}
+			else if(cTarget == 'i' || cTarget == 'I')
+			{
+				cValueToChange = sysCfg.identifier;
 			}
 			os_printf("Setting changed from %s to %s\n\r", cValueToChange, cValue);
 			os_sprintf(cValueToChange, cValue);

@@ -28,6 +28,9 @@ typedef struct{
 	uint8_t conTCPTimeout;
 	uint8_t bReserved[2];
 	
+	//64 332
+	uint8_t identifier[64];
+	
 } SYSCFG;
 
 typedef struct {

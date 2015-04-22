@@ -53,6 +53,7 @@ CFG_Load()
 
 		//Leave target station blank by default
 		os_sprintf(sysCfg.localAP_ssid, "ESPStation_%02x", system_get_chip_id());
+		os_sprintf(sysCfg.identifier, "ESP8266_%02x" , system_get_chip_id());
 		//Default to no password
 		os_printf("Station SSID set\n\r");
 	

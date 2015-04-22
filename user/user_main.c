@@ -107,7 +107,9 @@ StateEngine(os_event_t *events)
 			if(espconn_create(&espconnBroadcast))
 			{
 				os_printf("Created\n\r");
-				espconn_sent(&espconnBroadcast, "AlivePingHere", sizeof("AlivePingHere"));
+				char rgcBuffer[64];
+				os_sprintf(rgcBuffer, "ESP_M%d_%s", sysCfg.conbOutputMode, sysCfg.identifier);
+				espconn_sent(&espconnBroadcast, rgcBuffer, strlen(rgcBuffer));
 				os_printf("Sent\n\r");
 			}
 			
