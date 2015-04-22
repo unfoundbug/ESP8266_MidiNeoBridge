@@ -74,7 +74,7 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 	struct espconn * pConnection = (struct espconn*) arg;
 	os_printf("Recieved command length recieved: %d\n\r", iLength);
 	os_printf("Recieved a command to : %s\n\r", pData);
-	
+	uint16 iIterator;
 	struct softap_config wifiLocal;
 	struct station_config stationConf;
 	
@@ -86,7 +86,7 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 		cTarget = pData[1]; //Station, AP
 		cEntry = pData[2]; //SSID, Password
 	}
-	char* cValue = pData+3;
+	char* cValue = pData+3;	
 	if(cCommand == 'g' || cCommand == 'G')
 	{
 		char rgcOutputMessage[32];
@@ -126,6 +126,9 @@ CommandDataRecieved(void* arg, char* pData, uint16 iLength)
 	else if(cCommand == 's' || cCommand == 'S')
 	{
 		while(cValue[0] == ' ') ++cValue;
+		iIterator = 0;
+		while(cValue[++iIterator] > 47); //Is a drawing charachter
+		cValue[iIterator] = 0;
 		char* cValueToChange;
 		if(cTarget == 'm' || cTarget == 'M')
 		{
