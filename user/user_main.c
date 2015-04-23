@@ -20,6 +20,8 @@ uint8 pBuffer[128]; //Temporary buffer for structures
 os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
+char rgcIpAddress[4];
+
 //Called on a timers
 static void ICACHE_FLASH_ATTR
 StateEngine(os_event_t *events)
@@ -50,6 +52,7 @@ StateEngine(os_event_t *events)
 				eCurrentLaunchState = STATE_REMOTE_CONNECTED;
 				gi_RemoteStation_EndTime = uiCurrentTime + CONNECTION_TIMEOUT;
 				os_printf("Connected to remote wifi\n\r");
+				
 				os_printf("IP: %d.%d.%d.%d\n\r",  IP2STR(&addrInfo.ip.addr)); 
 				os_printf("netmask: %d.%d.%d.%d\n\r", IP2STR(&addrInfo.netmask.addr));
 				os_printf("gw: %d.%d.%d.%d\n\r\n\r",  IP2STR(&addrInfo.gw.addr));
@@ -98,9 +101,9 @@ StateEngine(os_event_t *events)
 				espconnBroadcast.proto.udp = (struct _esp_udp *) os_malloc(sizeof(struct _esp_udp));
 				espconnBroadcast.type = ESPCONN_UDP;
 				espconnBroadcast.proto.udp->remote_port = 8282;
-				espconnBroadcast.proto.udp->remote_ip[0] = 172;
-				espconnBroadcast.proto.udp->remote_ip[1] = 16;
-				espconnBroadcast.proto.udp->remote_ip[2] = 0;
+				espconnBroadcast.proto.udp->remote_ip[0] = 255;
+				espconnBroadcast.proto.udp->remote_ip[1] = 255;
+				espconnBroadcast.proto.udp->remote_ip[2] = 255;
 				espconnBroadcast.proto.udp->remote_ip[3] = 255;			
 				
 			}
@@ -131,7 +134,7 @@ startServers()
 	
 	InitCommandServer(8080);
 	InitTransferServer(8081);
-	
+	InitHTTPServer();
 	espconn_tcp_set_max_con(1);
 	os_printf("Servers started\n\r");
 }
