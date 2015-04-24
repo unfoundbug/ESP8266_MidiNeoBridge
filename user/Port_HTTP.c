@@ -7,6 +7,28 @@ extern SYSCFG sysCfg;
 
 #include "response.c"
 
+uint32 strpos(char* rgcSrc, char* rgcTar)
+{
+	uint32 uiSrcPos = 0;
+	uint32 uiTarPos = 0;
+	while(rgcSrc[uiSrcPos] != 0)
+	{
+		if(rgcTar[uiTarPos] != 0)
+		{
+			if(rgcSrc[uiSrcPos] == rgcTar[uiTarPos])
+				++uiTarPos;
+			else
+				uiTarPos = 0;
+		}
+		else
+		{
+			return uiSrcPos - uiTarPos;
+		}
+		++uiSrcPos;
+	}
+	return -1;
+}
+
 void ICACHE_FLASH_ATTR
 InitHTTPServer()
 {
@@ -66,7 +88,24 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 	struct espconn * pConnection = (struct espconn*) arg;
 	os_printf("Recieved HTTP length recieved: %d\n\r", iLength);
 	os_printf("Recieved a HTTP to : %s\n\r", pData);
+	char rgcOutputString[1200];
+	
+	if(strpos(pData, "POST /") != -1)
+	{
+		os_printf("Handled Submit!\n\r");
+		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\n\rConnection: close\n\r\n\r<html><head/><body><h1>DONE</body></html>");
+	}
+	else if(strpos(pData, "GET / ") != -1)
+	{
+		os_sprintf(rgcOutputString, rgcDefaultConnection, sysCfg.station_ssid, sysCfg.station_pwd, sysCfg.localAP_ssid, sysCfg.localAP_pwd, sysCfg.identifier);
+	}
+	else
+	{
+		os_printf("Handled Fail!\n\r");
+		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\n\rConnection: close\n\r\n\r<html><head/><body><h1>Whoops, wrong link</body></html>");
+	}
+	
 	espconn_regist_sentcb(pConnection, HTTPHandleDataSent);
-	espconn_sent(pConnection, rgcDefaultConnection, strlen(rgcDefaultConnection));
+	espconn_sent(pConnection, rgcOutputString, strlen(rgcOutputString));
 	os_printf("Send Started\n\r");
 }
