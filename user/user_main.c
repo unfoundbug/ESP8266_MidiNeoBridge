@@ -251,7 +251,7 @@ user_init()
 	
 	os_timer_disarm(&tStatusTimer);
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
-	os_timer_arm(&tStatusTimer, 2000, true);
+	os_timer_arm(&tStatusTimer, 250, true);
 	os_printf("Timer set\n\r");
 	os_printf("RTC calibration at %d\n\r", system_rtc_clock_cali_proc());
 	eCurrentLaunchState = STATE_STARTREMOTE;

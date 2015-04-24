@@ -64,7 +64,7 @@ HTTPConnectionEstablished(void* pArg)
 {
 	struct espconn * pConnection = (struct espconn*) pArg;
 	espconn_regist_time(pConnection, 120, 0);
-	os_printf("Connection established to HTTP server\n\r");
+	os_printf("Connection established to HTTP server\r\n");
 	espconn_regist_recvcb(pConnection, HTTPDataRecieved);
 	espconn_regist_disconcb(pConnection, HTTPConnectionClosed);
 }
@@ -73,27 +73,39 @@ void ICACHE_FLASH_ATTR
 HTTPConnectionClosed(void* pArg)
 {
 	struct espconn * pConnection =  (struct espconn*) pArg;
-	os_printf("Connection dropped from HTTP server\n\r");
+	os_printf("Connection dropped from HTTP server\r\n");
 }
 void ICACHE_FLASH_ATTR HTTPHandleDataSent(void* arg)
 {
 	struct espconn * pConnection = (struct espconn*) arg;
 	espconn_disconnect(pConnection);
 	espconn_delete(pConnection);
-	os_printf("Send Done\n\r");
+	os_printf("Send Done\r\n");
 }
 void ICACHE_FLASH_ATTR
 HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 {
 	struct espconn * pConnection = (struct espconn*) arg;
-	os_printf("Recieved HTTP length recieved: %d\n\r", iLength);
-	os_printf("Recieved a HTTP to : %s\n\r", pData);
+	os_printf("Recieved HTTP length recieved: %d\r\n", iLength);
+	//os_printf("Recieved a HTTP to : %s\r\n", pData);
 	char rgcOutputString[1200];
 	
 	if(strpos(pData, "POST /") != -1)
 	{
-		os_printf("Handled Submit!\n\r");
-		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\n\rConnection: close\n\r\n\r<html><head/><body><h1>DONE</body></html>");
+		os_printf("Handled Submit!\r\n");
+		os_printf("Found new data: %s\n\r", pData +strpos(pData, "\n\r")+3);
+		char* curLoc = pData +strpos(pData, "\n\r")+3;
+		char* nexLoc;
+		do
+		{
+			nexLoc= curLoc + strpos(curLoc, "&"); 	
+			nexLoc[0] = 0;
+			++nexLoc;
+			os_printf("CurLoc: %s\n\r", curLoc);
+			curLoc = nexLoc;
+		}
+		while(strpos(curLoc, "&") != -1);
+		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n<html><head/><body><h1>DONE</body></html>");
 	}
 	else if(strpos(pData, "GET / ") != -1)
 	{
@@ -101,11 +113,11 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 	}
 	else
 	{
-		os_printf("Handled Fail!\n\r");
-		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\n\rConnection: close\n\r\n\r<html><head/><body><h1>Whoops, wrong link</body></html>");
+		os_printf("Handled Fail!\r\n");
+		os_sprintf(rgcOutputString, "HTTP/1.1 404 Not Found\r\nContent-type: text/html\r\nServer: ESPHost\r\nConnection: close\r\n\r\n<html><head/><body><a href=\"\\\"><h1>Whoops, wrong link</h1></a></body></html>");
 	}
 	
 	espconn_regist_sentcb(pConnection, HTTPHandleDataSent);
 	espconn_sent(pConnection, rgcOutputString, strlen(rgcOutputString));
-	os_printf("Send Started\n\r");
+	os_printf("Send Started\r\n");
 }
