@@ -117,37 +117,37 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 				value[0] = 0;
 				++value;
 				os_printf("Setting: %s new value: %s\n\r", entry, value);
-			
+			char* targetVal;
 				switch(entry[1])
 				{
 					case '0':
 					{
+						targetVal = sysCfg.station_ssid;
 					}break;
 					case '1':
 					{
+						targetVal = sysCfg.station_pwd;
 					}break;
 					case '2':
 					{
+						targetVal = sysCfg.localAP_ssid;
 					}break;
 					case '3':
 					{
-					}break;
-					case '4':
-					{
+						targetVal = sysCfg.localAP_pwd;
 					}break;
 					case '5':
 					{
+						targetVal = sysCfg.identifier;
 					}break;
-					case '6':
-					{
-					}break;
-					case '7':
-					{
-					}break;
-					case '8':
-					{
-					}break;
-					
+				}
+				if(value[0] != 0)
+				{
+					os_sprintf(targetVal, value);
+				}
+				else
+				{
+					os_memset(targetVal, 0, 64);
 				}
 			}
 			
