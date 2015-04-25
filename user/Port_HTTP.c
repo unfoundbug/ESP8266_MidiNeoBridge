@@ -7,7 +7,7 @@ extern SYSCFG sysCfg;
 
 #include "response.c"
 
-uint32 strpos(char* rgcSrc, char* rgcTar)
+int32 strpos(char* rgcSrc, char* rgcTar)
 {
 	uint32 uiSrcPos = 0;
 	uint32 uiTarPos = 0;
@@ -96,15 +96,64 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 		os_printf("Found new data: %s\n\r", pData +strpos(pData, "\n\r")+3);
 		char* curLoc = pData +strpos(pData, "\n\r")+3;
 		char* nexLoc;
+		char* entry;
+		char* value;
+		int32 nextSplit;
 		do
 		{
-			nexLoc= curLoc + strpos(curLoc, "&"); 	
-			nexLoc[0] = 0;
-			++nexLoc;
-			os_printf("CurLoc: %s\n\r", curLoc);
+			nextSplit = strpos(curLoc, "&"); 	
+			if(nextSplit != -1)
+			{
+				nexLoc= curLoc + nextSplit;
+				nexLoc[0] = 0;
+				++nexLoc;
+			}
+			
+			entry = curLoc;
+			value = entry + 2; //currently all values are in the form s<n> s for setting and n is a single charachter identifier
+			if(value+1 != 0)
+			{
+				//if we have data
+				value[0] = 0;
+				++value;
+				os_printf("Setting: %s new value: %s\n\r", entry, value);
+			
+				switch(entry[1])
+				{
+					case '0':
+					{
+					}break;
+					case '1':
+					{
+					}break;
+					case '2':
+					{
+					}break;
+					case '3':
+					{
+					}break;
+					case '4':
+					{
+					}break;
+					case '5':
+					{
+					}break;
+					case '6':
+					{
+					}break;
+					case '7':
+					{
+					}break;
+					case '8':
+					{
+					}break;
+					
+				}
+			}
+			
 			curLoc = nexLoc;
 		}
-		while(strpos(curLoc, "&") != -1);
+		while(nextSplit != -1);
 		os_sprintf(rgcOutputString, "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n<html><head/><body><h1>DONE</body></html>");
 	}
 	else if(strpos(pData, "GET / ") != -1)
