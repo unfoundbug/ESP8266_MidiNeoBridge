@@ -165,7 +165,7 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 		os_printf("Handled Fail!\r\n");
 		os_sprintf(rgcOutputString, "HTTP/1.1 404 Not Found\r\nContent-type: text/html\r\nServer: ESPHost\r\nConnection: close\r\n\r\n<html><head/><body><a href=\"\\\"><h1>Whoops, wrong link</h1></a></body></html>");
 	}
-	
+	CFG_Save();
 	espconn_regist_sentcb(pConnection, HTTPHandleDataSent);
 	espconn_sent(pConnection, rgcOutputString, strlen(rgcOutputString));
 	os_printf("Send Started\r\n");

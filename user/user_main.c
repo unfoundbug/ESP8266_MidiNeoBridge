@@ -63,6 +63,8 @@ StateEngine(os_event_t *events)
 				{
 					eCurrentLaunchState = STATE_STARTLOCAL;
 				}
+				else
+					os_printf(".");
 			}
 		}break;
 		case STATE_REMOTE_CONNECTED:
