@@ -1,10 +1,24 @@
 #include "Port_Transfer.h"
 #include "application.h"
-#define sendMidiByte(bByte)	pinLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
+
+#define midiHigh() GPIO_OUTPUT_SET(2,1); os_delay_us(32);
+#define midiLow() GPIO_OUTPUT_SET(2,0); os_delay_us(32);
+
+#define midiBit(bByte, oSet) if(bByte&oSet) {midiHigh();} else{ midiLow();}
+
+#define sendMidiByte(bByte)	midiLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
 									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
-							pinHigh();
+							midiHigh();
 
 
+#define neoBit(bByte, oSet) pinHigh(); \
+								\
+								if(bByte&oSet)\
+								{}\
+							pinLow();
+#define neoByte(byte)     neoBit(bByte, 0x01); neoBit(bByte, 0x02); neoBit(bByte, 0x04); neoBit(bByte, 0x08); \
+						  neoBit(bByte, 0x10); neoBit(bByte, 0x20); neoBit(bByte, 0x40); neoBit(bByte, 0x80);
+					
 //CommandTransfer socket
 struct espconn espconnTransfer;
 
@@ -102,4 +116,22 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 			os_printf("Packet Complete\n\r");
 		}
 		os_printf("Recieved data length recieved: %d\n\r", iLength);
+}
+char* ProcessMidi(char* pcNMidi)
+{
+	uint16_t uiTimeToWait = *((uint16_t*)pcNMidi);
+	char* pcCurCmd = pcNMidi + 2;
+	
+	if(uiTimeToWait)
+	{
+	}
+	sendMidiByte(pcCurCmd[0]);
+	sendMidiByte(pcCurCmd[1]);
+	if(pcCurCmd[0] < 0xB0 || pcCurCmd[0] >= 0xe0)
+	{
+		sendMidiByte(pcCurCmd[2]);
+		pcCurCmd += 3;
+	}
+	else
+		pcCurCmd += 2;
 }
