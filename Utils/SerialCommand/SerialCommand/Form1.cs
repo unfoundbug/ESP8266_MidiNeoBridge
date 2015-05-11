@@ -12,6 +12,17 @@ namespace SerialCommand
     
     public partial class Form1 : Form
     {
+		public bool memcmp(byte[] A, byte[] B, int iLen)
+		{
+			int iCurPoint = 0;
+			while (iCurPoint < iLen)
+			{
+				if (A[iCurPoint] != B[iCurPoint])
+					return false;
+				++iCurPoint;
+			}
+			return true;
+		}
         System.Net.Sockets.UdpClient udpReciever;
         public Form1()
         {
@@ -97,6 +108,80 @@ namespace SerialCommand
             }
             label3.Text = strDataRecieved;
         }
+
+		byte[] bExpectedHeader = { 0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06 };
+		byte[] bExpectedTrack = { 0x4d, 0x54, 0x72, 0x6B};
+		int uiTimeScale;
+		int uiTrackCount;
+		byte[][] lbTrackData;
+
+		private void button1_Click_1(object sender, EventArgs e)
+		{
+
+			openFileDialog1.ShowDialog();
+			byte [] bHeader = new byte[14];
+			byte[] bTrackHeader = new byte[8];
+			if (openFileDialog1.CheckFileExists)
+			{
+				System.IO.Stream strFile = openFileDialog1.OpenFile();
+				//read header
+				strFile.Read(bHeader, 0, 14);
+				if (memcmp(bHeader, bExpectedHeader, 8) == false)
+				{
+					return;
+				}
+				if (bHeader[9] != 1) //Expect simple multi-track recordings
+				{
+					return;
+				}
+				uint uiHeaderSize = bHeader[7];
+				uiHeaderSize|=((uint)bHeader[6]) << 8;
+				uiHeaderSize|=((uint)bHeader[5]) << 16;
+				uiTrackCount = bHeader[11];
+				uiTrackCount |= ((int)bHeader[10]) << 8;
+				uiTimeScale = bHeader[13];
+				uiTimeScale |= ((int)bHeader[12]) << 8;
+
+				lbTrackData = new byte[uiTrackCount][];
+
+				for(int i = 0; i < uiTrackCount; ++i)
+				{
+					strFile.Read(bTrackHeader, 0, 8);
+					if(!memcmp(bTrackHeader, bExpectedTrack, 4))
+					{ ///Track incorrect
+						return;
+					}
+					uint uiTrackLength = bTrackHeader[7];
+					uiTrackLength |= ((uint)bTrackHeader[6]) << 8;
+					uiTrackLength |= ((uint)bTrackHeader[5]) << 16;
+					uiTrackLength |= ((uint)bTrackHeader[4]) << 24;
+					lbTrackData[i] = new byte[uiTrackLength];
+					for (uint j = 0; j < uiTrackLength; ++j)
+					{
+						lbTrackData[i][j] = ((byte)strFile.ReadByte());
+					}
+					//Start Pre-Process
+					for (uint j = 0; j < uiTrackLength; ++j)
+					{
+						//Read Timing bytes
+						int iTimeStep = lbTrackData[i][j];
+						{
+							while ((lbTrackData[i][j] & (byte)0x80) != 0)
+							{
+
+							}
+						}
+					}
+				}
+				//read track
+				//read data
+			}
+		}
+
+		private void button2_Click(object sender, EventArgs e)
+		{
+
+		}
 
     }
     public class broadcastPacket
