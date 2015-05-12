@@ -164,12 +164,47 @@ namespace SerialCommand
 					for (uint j = 0; j < uiTrackLength; ++j)
 					{
 						//Read Timing bytes
-						int iTimeStep = lbTrackData[i][j];
+						int iTimeStep = lbTrackData[i][j] & 0X7f;
 						{
 							while ((lbTrackData[i][j] & (byte)0x80) != 0)
 							{
-
+								++j;
+								iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
 							}
+						}
+						++j;
+
+						byte bCommand = lbTrackData[i][j];
+						if (bCommand == 0xff)
+						{
+							++j;
+							byte bSubCommand = lbTrackData[i][j];
+							++j;
+							if (bSubCommand < 8)
+							{
+								//dynamic length that can be ignored
+								int iCommandLength = lbTrackData[i][j] & 0X7f;
+								{
+									while ((lbTrackData[i][j] & (byte)0x80) != 0)
+									{
+										++j;
+										iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
+									}
+								}
+								j += (uint)iCommandLength;
+							}
+							else
+							{
+								byte bCommandLen = lbTrackData[i][j];
+								j += (uint)bCommandLen + 1;
+							}
+
+						}
+						else if (bCommand == 0xF0)
+						{
+							++j;
+							byte bCommandLen = lbTrackData[i][j];
+							j += (uint)bCommandLen + 1;
 						}
 					}
 				}
