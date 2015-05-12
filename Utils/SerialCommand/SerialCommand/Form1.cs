@@ -12,6 +12,14 @@ namespace SerialCommand
     
     public partial class Form1 : Form
     {
+
+        byte[] bExpectedHeader = { 0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06 };
+        byte[] bExpectedTrack = { 0x4d, 0x54, 0x72, 0x6B };
+        int uiTimeScale;
+        int uiTrackCount;
+        byte[][] lbTrackData;
+        List<List<MidiEvent>> llMidiEvents;
+
 		public bool memcmp(byte[] A, byte[] B, int iLen)
 		{
 			int iCurPoint = 0;
@@ -109,18 +117,13 @@ namespace SerialCommand
             label3.Text = strDataRecieved;
         }
 
-		byte[] bExpectedHeader = { 0x4d, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06 };
-		byte[] bExpectedTrack = { 0x4d, 0x54, 0x72, 0x6B};
-		int uiTimeScale;
-		int uiTrackCount;
-		byte[][] lbTrackData;
-
 		private void button1_Click_1(object sender, EventArgs e)
 		{
 
 			openFileDialog1.ShowDialog();
 			byte [] bHeader = new byte[14];
 			byte[] bTrackHeader = new byte[8];
+            llMidiEvents = new List<List<MidiEvent>>();
 			if (openFileDialog1.CheckFileExists)
 			{
 				System.IO.Stream strFile = openFileDialog1.OpenFile();
@@ -156,11 +159,9 @@ namespace SerialCommand
 					uiTrackLength |= ((uint)bTrackHeader[5]) << 16;
 					uiTrackLength |= ((uint)bTrackHeader[4]) << 24;
 					lbTrackData[i] = new byte[uiTrackLength];
-					for (uint j = 0; j < uiTrackLength; ++j)
-					{
-						lbTrackData[i][j] = ((byte)strFile.ReadByte());
-					}
-					//Start Pre-Process
+                    strFile.Read(lbTrackData[i], 0, (int)uiTrackLength);
+                    llMidiEvents.Add(new List<MidiEvent>());
+                    //Start Pre-Process
 					for (uint j = 0; j < uiTrackLength; ++j)
 					{
 						//Read Timing bytes
@@ -173,15 +174,13 @@ namespace SerialCommand
 							}
 						}
 						++j;
-
 						byte bCommand = lbTrackData[i][j];
+                        ++j;
 						if (bCommand == 0xff)
 						{
-							++j;
+                            //Meta Events
 							byte bSubCommand = lbTrackData[i][j];
 							++j;
-							if (bSubCommand < 8)
-							{
 								//dynamic length that can be ignored
 								int iCommandLength = lbTrackData[i][j] & 0X7f;
 								{
@@ -191,21 +190,35 @@ namespace SerialCommand
 										iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
 									}
 								}
-								j += (uint)iCommandLength;
-							}
-							else
-							{
-								byte bCommandLen = lbTrackData[i][j];
-								j += (uint)bCommandLen + 1;
-							}
-
+								j += (uint)iCommandLength ;
 						}
-						else if (bCommand == 0xF0)
-						{
-							++j;
-							byte bCommandLen = lbTrackData[i][j];
-							j += (uint)bCommandLen + 1;
-						}
+                        else if (bCommand == 0xF0)
+                        {
+                            byte bCommandLen = lbTrackData[i][j];
+                            j += (uint)bCommandLen + 1;
+                        }
+                        else
+                        {
+                            MidiEvent nm = new MidiEvent();
+                            byte nibCom = (byte)(bCommand & 0xF0);
+                            byte nibChan = (byte)i;
+                            nm.iCommand = nibChan | nibCom;
+                            nm.iTime = iTimeStep;
+                            nm.iData1 = lbTrackData[i][j];
+                            ++j;
+                            nm.iData2 = lbTrackData[i][j];
+                            ++j;
+                            if (nm.iCommand < 0xC0)
+                            {
+                                nm.iData3 = lbTrackData[i][j];
+                                ++j;
+                            }
+                            else
+                            {
+                                nm.iData3 = -1;
+                            }
+                            llMidiEvents[i].Add(nm);
+                        }
 					}
 				}
 				//read track
@@ -224,5 +237,13 @@ namespace SerialCommand
         public DateTime dt;
         public byte[] bData;
         public System.Net.IPEndPoint ipRemote;
+    };
+    public class MidiEvent
+    {
+        public int iTime;
+        public int iCommand;
+        public int iData1;
+        public int iData2;
+        public int iData3;
     };
 }
