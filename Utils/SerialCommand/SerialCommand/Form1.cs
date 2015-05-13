@@ -19,7 +19,7 @@ namespace SerialCommand
         int uiTrackCount;
         byte[][] lbTrackData;
         List<List<MidiEvent>> llMidiEvents;
-
+		List<int> liMidiPlayTime;
 		public bool memcmp(byte[] A, byte[] B, int iLen)
 		{
 			int iCurPoint = 0;
@@ -119,11 +119,14 @@ namespace SerialCommand
 
 		private void button1_Click_1(object sender, EventArgs e)
 		{
-
-			openFileDialog1.ShowDialog();
+			dataGridView1.Rows.Clear();
+			DialogResult dr = openFileDialog1.ShowDialog();
+			if (dr != DialogResult.OK) return;
 			byte [] bHeader = new byte[14];
 			byte[] bTrackHeader = new byte[8];
             llMidiEvents = new List<List<MidiEvent>>();
+			liMidiPlayTime = new List<int>(0);
+			Dictionary<byte, string> strFRes = new Dictionary<byte, string>();
 			if (openFileDialog1.CheckFileExists)
 			{
 				System.IO.Stream strFile = openFileDialog1.OpenFile();
@@ -149,6 +152,7 @@ namespace SerialCommand
 
 				for(int i = 0; i < uiTrackCount; ++i)
 				{
+					liMidiPlayTime.Add(0);
 					strFile.Read(bTrackHeader, 0, 8);
 					if(!memcmp(bTrackHeader, bExpectedTrack, 4))
 					{ ///Track incorrect
@@ -162,6 +166,7 @@ namespace SerialCommand
                     strFile.Read(lbTrackData[i], 0, (int)uiTrackLength);
                     llMidiEvents.Add(new List<MidiEvent>());
                     //Start Pre-Process
+					int bCurrentCommand = 0;
 					for (uint j = 0; j < uiTrackLength; ++j)
 					{
 						//Read Timing bytes
@@ -181,16 +186,35 @@ namespace SerialCommand
                             //Meta Events
 							byte bSubCommand = lbTrackData[i][j];
 							++j;
-								//dynamic length that can be ignored
-								int iCommandLength = lbTrackData[i][j] & 0X7f;
+							//dynamic length that can be ignored
+							int iCommandLength = lbTrackData[i][j] & 0X7f;
+							{
+								while ((lbTrackData[i][j] & (byte)0x80) != 0)
 								{
-									while ((lbTrackData[i][j] & (byte)0x80) != 0)
-									{
-										++j;
-										iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
-									}
+									++j;
+									iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
 								}
-								j += (uint)iCommandLength ;
+							}
+							if (bSubCommand == 0x03 || bSubCommand == 0x51)
+							{
+								string strValue;
+								string strRes = "";
+								if(bSubCommand == 0x03)
+									strRes = i.ToString() + ": " + System.Text.Encoding.UTF8.GetString(lbTrackData[i], (int)j + 1, (int)iCommandLength) + "\n";
+								else
+								{
+									Int32 tempo = lbTrackData[i][j+1] << 16;
+									tempo += lbTrackData[i][j+2] << 8;
+									tempo += lbTrackData[i][j+3];
+									tempo = 60000000 / tempo;
+									strRes = i.ToString() + ": " + tempo.ToString() + "\n";
+								}
+								if (strFRes.TryGetValue(bSubCommand, out strValue) == true)
+									strFRes[bSubCommand] = strValue + strRes;
+								else
+									strFRes.Add(bSubCommand, strRes);
+							}
+							j += (uint)iCommandLength;
 						}
                         else if (bCommand == 0xF0)
                         {
@@ -200,35 +224,87 @@ namespace SerialCommand
                         else
                         {
                             MidiEvent nm = new MidiEvent();
-                            byte nibCom = (byte)(bCommand & 0xF0);
-                            byte nibChan = (byte)i;
-                            nm.iCommand = nibChan | nibCom;
+							nm.iCommand = bCommand;
+							if (bCommand < 0x80)
+							{
+								--j;
+								nm.iCommand = bCurrentCommand;
+							}
+							else
+							{
+								nm.iCommand = bCommand;
+								bCurrentCommand = bCommand;
+							}
+
                             nm.iTime = iTimeStep;
                             nm.iData1 = lbTrackData[i][j];
-                            ++j;
-                            nm.iData2 = lbTrackData[i][j];
-                            ++j;
-                            if (nm.iCommand < 0xC0)
+                            if (nm.iCommand < 0xE0 && bCommand > 0xBF)
                             {
-                                nm.iData3 = lbTrackData[i][j];
-                                ++j;
+								nm.iData2 = -1;
                             }
                             else
                             {
-                                nm.iData3 = -1;
+								++j;
+								nm.iData2 = lbTrackData[i][j];
                             }
                             llMidiEvents[i].Add(nm);
                         }
 					}
 				}
-				//read track
-				//read data
+				bool bEventsLeft;
+				int iLastEvent = 0;
+				int iNextEntry = 0;
+				do
+				{
+					bEventsLeft = false;
+					int iClosestEvent = (int)0x0FFFFFFF;
+					iNextEntry = -1;
+
+					for (int i = 0; i < llMidiEvents.Count; ++i)
+					{
+						if (llMidiEvents[i].Count > 0)
+						{
+							int iNextEvent;
+							iNextEvent = (llMidiEvents[i][0].iTime + liMidiPlayTime[i]);
+							if (iClosestEvent >= iNextEvent)
+							{
+								iClosestEvent = iNextEvent;
+								iNextEntry = i;
+							}
+						}
+					}
+					if (iNextEntry == -1)
+					{
+						int iBreakHere = 1;
+					}
+					int iWaitTime = (iClosestEvent - iLastEvent);
+					iLastEvent = iClosestEvent;
+					liMidiPlayTime[iNextEntry] += iClosestEvent - liMidiPlayTime[iNextEntry];
+					string[] row = new string[] { iClosestEvent.ToString(), iWaitTime.ToString(), llMidiEvents[iNextEntry][0].iCommand.ToString("X2"), llMidiEvents[iNextEntry][0].iData1.ToString(), llMidiEvents[iNextEntry][0].iData2.ToString() };
+					dataGridView1.Rows.Add(row);
+					llMidiEvents[iNextEntry].RemoveAt(0);
+					foreach (List<MidiEvent> lE in llMidiEvents)
+						if (lE.Count > 0)
+							bEventsLeft = true;
+				} while (bEventsLeft);
+				foreach (KeyValuePair<byte, string> pair in strFRes)
+				{
+					MessageBox.Show(pair.Value, pair.Key.ToString());
+				}
 			}
 		}
 
 		private void button2_Click(object sender, EventArgs e)
 		{
 
+			UInt64 iLen = 0;
+			foreach (DataGridViewRow row in dataGridView1.Rows)
+			{
+				iLen += 4;
+				if (row.Cells[4].ToString() != "-1")
+					++iLen;
+			}
+			MessageBox.Show("Estimated data length: " + iLen.ToString());
 		}
 
     }
@@ -244,6 +320,5 @@ namespace SerialCommand
         public int iCommand;
         public int iData1;
         public int iData2;
-        public int iData3;
     };
 }
