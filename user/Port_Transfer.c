@@ -45,7 +45,7 @@ enableTransferServer(uint32 iTCPPort)
 	}
 	else
 	{
-		gpDataBuffer = (char*)os_malloc(2048 + 2 + 1); //Data + size + tempo
+		gpDataBuffer = (char*)os_malloc((30*1024) + 2 + 1); //Data + size + tempo
 		os_printf("Buffer Allocated\n\r");
 	}
 	espconn_create(&espconnTransfer);
@@ -81,14 +81,14 @@ TransferConnectionClosed(void* pArg)
 	struct espconn * pConnection =  (struct espconn*) pArg;
 	os_printf("Connection dropped from command server\n\r");
 }
-
+uint32_t usPerBeat;
 
 void ICACHE_FLASH_ATTR
 TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 {
 		char* pDataToRead = pData;
 		unsigned short iToRead = iLength;
-		uint32_t usPerBeat;
+		
 		if(giDataMax == 0)
 		{
 			giDataMax = (pData[0] << 8) | pData[1];
@@ -101,16 +101,11 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		if(giDataLen == giDataMax)
 		{
 			os_printf("SendingData");
-			char iBPM = gpDataBuffer[0];
-			usPerBeat = 1000000 / iBPM;
-			
-			os_printf("Starting to play %d bytes at %dbpm, with %d us per beat\n\r", giDataMax - 1, iBPM, usPerBeat);
-			/*
-			for(i = 0; i < giDataMax; ++i)
-			{
-				sendMidiByte(gpDataBuffer[i]);
-			}
-			*/
+			usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
+			os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax - 1, usPerBeat);
+			char* pcIter = gpDataBuffer+2;
+			while(pcIter < gpDataBuffer + giDataMax)
+				pcIter = ProcessMidi(pcIter);
 			giDataLen = 0;
 			giDataMax = 0;
 			os_printf("Packet Complete\n\r");
@@ -124,14 +119,11 @@ char* ProcessMidi(char* pcNMidi)
 	
 	if(uiTimeToWait)
 	{
+		os_delay_us(uiTimeToWait * usPerBeat);
 	}
 	sendMidiByte(pcCurCmd[0]);
 	sendMidiByte(pcCurCmd[1]);
-	if(pcCurCmd[0] < 0xB0 || pcCurCmd[0] >= 0xe0)
-	{
+	if(pcCurCmd[2] != 0xFF)
 		sendMidiByte(pcCurCmd[2]);
-		pcCurCmd += 3;
-	}
-	else
-		pcCurCmd += 2;
+		
 }

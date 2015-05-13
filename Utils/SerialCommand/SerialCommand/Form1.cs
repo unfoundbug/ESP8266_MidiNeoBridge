@@ -6,7 +6,8 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-
+using System.Net;
+using System.Net.Sockets;
 namespace SerialCommand
 {
     
@@ -257,7 +258,7 @@ namespace SerialCommand
 				do
 				{
 					bEventsLeft = false;
-					int iClosestEvent = (int)0x0FFFFFFF;
+					    int iClosestEvent = (int)0x0FFFFFFF;
 					iNextEntry = -1;
 
 					for (int i = 0; i < llMidiEvents.Count; ++i)
@@ -297,15 +298,41 @@ namespace SerialCommand
 		private void button2_Click(object sender, EventArgs e)
 		{
 
-			UInt64 iLen = 0;
+            int iLen = (dataGridView1.Rows.Count * 5) + 4;
+            int iCurPoint = 4;
+            MessageBox.Show("Estimated data length: " + iLen.ToString());
+
+            byte[] bBuffer = new byte[iLen];
+            bBuffer[0] =(byte)( (iLen & 0xF0) >> 8);
+            bBuffer[1] = (byte)((iLen & 0xF));
+            int iUsPerBeat = 8333;
+            bBuffer[2] = (byte)((iUsPerBeat & 0xF0) >> 8);
+            bBuffer[3] = (byte)((iUsPerBeat & 0xF));
 			foreach (DataGridViewRow row in dataGridView1.Rows)
 			{
-				iLen += 4;
-				if (row.Cells[4].ToString() != "-1")
-					++iLen;
+                string strCell1, strCell2, strCell3, strCell4;
+                strCell1 = row.Cells[1].Value.ToString();
+                strCell2 = row.Cells[2].Value.ToString();
+                strCell3 = row.Cells[3].Value.ToString();
+                strCell4 = row.Cells[4].Value.ToString();
+                int iTime = int.Parse(strCell1);
+                bBuffer[iCurPoint++] = (byte)((iTime & 0xF0) << 8);
+                bBuffer[iCurPoint++] = (byte) (iTime & 0xF);
+                bBuffer[iCurPoint++] = (byte)int.Parse(strCell2, System.Globalization.NumberStyles.HexNumber);
+                bBuffer[iCurPoint++] = (byte)int.Parse(strCell3);
+                bBuffer[iCurPoint++] = (byte)int.Parse(strCell4);
 			}
-			MessageBox.Show("Estimated data length: " + iLen.ToString());
+            System.Net.Sockets.Socket s = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+            s.Connect("192.168.43.178", 8081);
+            s.Send(bBuffer);
+            s.Close();
+
 		}
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+
+        }
 
     }
     public class broadcastPacket

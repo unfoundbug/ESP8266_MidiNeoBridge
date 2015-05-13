@@ -139,6 +139,7 @@ startServers()
 	InitHTTPServer();
 	espconn_tcp_set_max_con(1);
 	os_printf("Servers started\n\r");
+	os_printf("Memory left: %d\n\r", system_get_free_heap_size());
 }
 
 static void ICACHE_FLASH_ATTR
