@@ -88,11 +88,13 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 {
 		char* pDataToRead = pData;
 		unsigned short iToRead = iLength;
-		
+		char i;
 		if(giDataMax == 0)
 		{
+			for(i = 0; i < 8; ++i)
+				os_printf("%d ", pData[i]);
 			giDataMax = (pData[0] << 8) | pData[1];
-			os_printf("New max length: %d\n\r", giDataMax);
+			os_printf("\n\rNew max length: %d\n\r", giDataMax);
 			pDataToRead = pData + 2;
 			iToRead -= 2;
 		}
@@ -102,9 +104,11 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		{
 			os_printf("SendingData");
 			usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
-			os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax - 1, usPerBeat);
+			os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax, usPerBeat);
 			char* pcIter = gpDataBuffer+2;
-			while(pcIter < gpDataBuffer + giDataMax)
+			char* pcEnd = (gpDataBuffer + giDataMax);
+			os_printf("From %p to %p\n\r", pcIter, pcEnd);
+			while(pcIter < pcEnd)
 				pcIter = ProcessMidi(pcIter);
 			giDataLen = 0;
 			giDataMax = 0;
@@ -114,6 +118,7 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 }
 char* ProcessMidi(char* pcNMidi)
 {
+	os_printf("Sending bytes\n\r");
 	uint16_t uiTimeToWait = *((uint16_t*)pcNMidi);
 	char* pcCurCmd = pcNMidi + 2;
 	
@@ -124,6 +129,12 @@ char* ProcessMidi(char* pcNMidi)
 	sendMidiByte(pcCurCmd[0]);
 	sendMidiByte(pcCurCmd[1]);
 	if(pcCurCmd[2] != 0xFF)
+	{
 		sendMidiByte(pcCurCmd[2]);
-		
+	}
+	else
+	{
+		return pcNMidi + 4;
+	}
+	return pcNMidi + 5;
 }

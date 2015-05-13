@@ -298,16 +298,16 @@ namespace SerialCommand
 		private void button2_Click(object sender, EventArgs e)
 		{
 
-            int iLen = (dataGridView1.Rows.Count * 5) + 4;
+            int iLen = (dataGridView1.Rows.Count * 5) + 2;
             int iCurPoint = 4;
             MessageBox.Show("Estimated data length: " + iLen.ToString());
 
-            byte[] bBuffer = new byte[iLen];
-            bBuffer[0] =(byte)( (iLen & 0xF0) >> 8);
-            bBuffer[1] = (byte)((iLen & 0xF));
+            byte[] bBuffer = new byte[iLen+2];
+            bBuffer[0] =(byte)(iLen >> 8);
+            bBuffer[1] = (byte)((iLen & 0xFF));
             int iUsPerBeat = 8333;
-            bBuffer[2] = (byte)((iUsPerBeat & 0xF0) >> 8);
-            bBuffer[3] = (byte)((iUsPerBeat & 0xF));
+            bBuffer[2] = (byte)((iUsPerBeat & 0xFF00) >> 8);
+            bBuffer[3] = (byte)((iUsPerBeat & 0xFF));
 			foreach (DataGridViewRow row in dataGridView1.Rows)
 			{
                 string strCell1, strCell2, strCell3, strCell4;
