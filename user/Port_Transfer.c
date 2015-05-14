@@ -1,8 +1,8 @@
 #include "Port_Transfer.h"
 #include "application.h"
 
-#define midiHigh() GPIO_OUTPUT_SET(2,1); os_delay_us(32);
-#define midiLow() GPIO_OUTPUT_SET(2,0); os_delay_us(32);
+#define midiHigh() GPIO_OUTPUT_SET(PERIPHS_IO_MUX_GPIO2_U,1); os_delay_us(32);
+#define midiLow() GPIO_OUTPUT_SET(PERIPHS_IO_MUX_GPIO2_U,0); os_delay_us(32);
 
 #define midiBit(bByte, oSet) if(bByte&oSet) {midiHigh();} else{ midiLow();}
 

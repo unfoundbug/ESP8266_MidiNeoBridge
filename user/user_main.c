@@ -247,6 +247,10 @@ user_init()
 		
 	//Setup GPIO and data buffer
 	gpio_init();
+	PIN_FUNC_SELECT(PERIPHS_IO_MUX_GPIO2_U,FUNC_GPIO2);
+	PIN_PULLDWN_DIS(PERIPHS_IO_MUX_GPIO2_U)
+	PIN_PULLUP_DIS(PERIPHS_IO_MUX_GPIO2_U)
+	GPIO_OUTPUT_SET(PERIPHS_IO_MUX_GPIO2_U,1);
 	os_printf("GPIO Enabled\n\r");
 	
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
