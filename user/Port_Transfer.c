@@ -1,14 +1,14 @@
 #include "Port_Transfer.h"
 #include "application.h"
-
-#define midiHigh() GPIO_OUTPUT_SET(PERIPHS_IO_MUX_GPIO2_U,1); os_delay_us(32);
-#define midiLow() GPIO_OUTPUT_SET(PERIPHS_IO_MUX_GPIO2_U,0); os_delay_us(32);
+#include "eagle_soc.h"
+#define midiHigh() PIN_OUT_SET = 0x04; os_delay_us(32);
+#define midiLow() PIN_OUT_CLEAR = 0x04; os_delay_us(32);
 
 #define midiBit(bByte, oSet) if(bByte&oSet) {midiHigh();} else{ midiLow();}
 
 #define sendMidiByte(bByte)	midiLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
 									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
-							midiHigh();
+							midiHigh()os_delay_us(5);
 
 
 #define neoBit(bByte, oSet) pinHigh(); \
