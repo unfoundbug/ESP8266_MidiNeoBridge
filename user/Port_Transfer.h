@@ -6,5 +6,6 @@ void ICACHE_FLASH_ATTR InitTransferServer(uint32 Port);
 void ICACHE_FLASH_ATTR TransferConnectionEstablished(void* pArg);
 void ICACHE_FLASH_ATTR TransferDataRecieved(void* pTarget, char* pData, unsigned short iDataLen);
 void ICACHE_FLASH_ATTR TransferConnectionClosed(void* pArg);
-char* ProcessMidi(char* pcNMidi);
+void ProcessMidi(char* pcNMidi, uint32 uiLen);
+void TransferTimingTest();
 #endif

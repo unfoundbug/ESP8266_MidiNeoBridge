@@ -223,6 +223,17 @@ connectToRemoteAP()
 	wifi_set_opmode(0x01);
 }
 
+volatile uint32_t neoTime;
+
+#define neo0() {PIN_OUT_SET = 0x04; neoTime = 1; for(; neoTime > 0; neoTime--); PIN_OUT_CLEAR = 0x04; neoTime = 3; for(; neoTime > 0; neoTime--);;}
+#define neo1() {PIN_OUT_SET = 0x04; neoTime = 3; for(; neoTime > 0; neoTime--); PIN_OUT_CLEAR = 0x04; neoTime = 1; for(; neoTime > 0; neoTime--);;}
+
+#define neoBit(bByte, oSet) {if(bByte&oSet) {neo0();} else{ neo1();}}
+
+#define sendneoByte(bByte)	{neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
+								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBit(bByte, 0x01);}
+#define neoLatch()	neoTime = 42; while(--neoTime);
+
 //Init function 
 void ICACHE_FLASH_ATTR
 user_init()
@@ -251,7 +262,14 @@ user_init()
 	PIN_OUT_SET = 0x04;
 	os_printf("GPIO Enabled\n\r");
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
-	
+	PIN_OUT_CLEAR = 0x04; //Init NeoLine;
+	while(1)
+	{
+	int i = 0;
+	for(i = 1; i < 60; ++i)
+		sendneoByte(i);
+	neoLatch();
+	}
 	
 	os_timer_disarm(&tStatusTimer);
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);

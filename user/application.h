@@ -18,15 +18,7 @@ static void UpdateLocalAPDetails();
 static void Reboot();
 
 static void StateEngine(os_event_t *events);
-
-#define neoBit(bByte, oSet) pinHigh(); \
-								\
-								if(bByte&oSet)\
-								{}\
-							pinLow();
-#define neoByte(byte)     neoBit(bByte, 0x01); neoBit(bByte, 0x02); neoBit(bByte, 0x04); neoBit(bByte, 0x08); \
-						  neoBit(bByte, 0x10); neoBit(bByte, 0x20); neoBit(bByte, 0x40); neoBit(bByte, 0x80);
-						
+	
 						  
 #define scheduleCall(Function, sig, par) { system_os_task(Function, 1, user_procTaskQueue, user_procTaskQueueLen); system_os_post(1, sig, par); }
 

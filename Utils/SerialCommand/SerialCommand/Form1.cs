@@ -318,9 +318,9 @@ namespace SerialCommand
                 int iTime = int.Parse(strCell1);
                 bBuffer[iCurPoint++] = (byte)((iTime & 0xF0) << 8);
                 bBuffer[iCurPoint++] = (byte) (iTime & 0xF);
-                bBuffer[iCurPoint++] = (byte)int.Parse(strCell2, System.Globalization.NumberStyles.HexNumber);
-                bBuffer[iCurPoint++] = (byte)int.Parse(strCell3);
-                bBuffer[iCurPoint++] = (byte)int.Parse(strCell4);
+                bBuffer[iCurPoint++] = (byte)0xFF;//int.Parse(strCell2, System.Globalization.NumberStyles.HexNumber);
+                bBuffer[iCurPoint++] = (byte)0xFF;//int.Parse(strCell3);
+                bBuffer[iCurPoint++] = (byte)0xff;//int.Parse(strCell4);
 			}
             System.Net.Sockets.Socket s = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
             s.Connect("192.168.43.178", 8081);

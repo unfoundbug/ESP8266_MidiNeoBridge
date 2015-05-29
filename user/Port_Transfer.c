@@ -1,24 +1,14 @@
 #include "Port_Transfer.h"
 #include "application.h"
 #include "eagle_soc.h"
-#define midiHigh() PIN_OUT_SET = 0x04; os_delay_us(32);
-#define midiLow() PIN_OUT_CLEAR = 0x04; os_delay_us(32);
+#define midiHigh() PIN_OUT_SET = 0x04; os_delay_us(38);
+#define midiLow() PIN_OUT_CLEAR = 0x04; os_delay_us(38);
 
 #define midiBit(bByte, oSet) if(bByte&oSet) {midiHigh();} else{ midiLow();}
 
 #define sendMidiByte(bByte)	midiLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
 									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
-							midiHigh()os_delay_us(5);
-
-
-#define neoBit(bByte, oSet) pinHigh(); \
-								\
-								if(bByte&oSet)\
-								{}\
-							pinLow();
-#define neoByte(byte)     neoBit(bByte, 0x01); neoBit(bByte, 0x02); neoBit(bByte, 0x04); neoBit(bByte, 0x08); \
-						  neoBit(bByte, 0x10); neoBit(bByte, 0x20); neoBit(bByte, 0x40); neoBit(bByte, 0x80);
-					
+							midiHigh()os_delay_us(10);					
 //CommandTransfer socket
 struct espconn espconnTransfer;
 
@@ -105,36 +95,38 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 			os_printf("SendingData");
 			usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
 			os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax, usPerBeat);
-			char* pcIter = gpDataBuffer+2;
-			char* pcEnd = (gpDataBuffer + giDataMax);
-			os_printf("From %p to %p\n\r", pcIter, pcEnd);
-			while(pcIter < pcEnd)
-				pcIter = ProcessMidi(pcIter);
+			ProcessMidi(gpDataBuffer+2, giDataMax - 2);
 			giDataLen = 0;
 			giDataMax = 0;
 			os_printf("Packet Complete\n\r");
 		}
 		os_printf("Recieved data length recieved: %d\n\r", iLength);
 }
-char* ProcessMidi(char* pcNMidi)
+void ProcessMidi(char* pcNMidi, uint32 uiLen)
 {
 	os_printf("Sending bytes\n\r");
-	uint16_t uiTimeToWait = *((uint16_t*)pcNMidi);
-	char* pcCurCmd = pcNMidi + 2;
-	
-	if(uiTimeToWait)
+	uint32 uiCurPoint = 0;
+	while(uiLen > uiCurPoint)
 	{
-		os_delay_us(uiTimeToWait * usPerBeat);
+		uint16_t uiTimeToWait = pcNMidi[uiCurPoint];
+		uiTimeToWait = uiTimeToWait << 8;
+		uiTimeToWait =uiTimeToWait + pcNMidi[uiCurPoint + 1];
+		char* pcCurCmd = pcNMidi + uiCurPoint + 2;
+		
+		if(uiTimeToWait)
+		{
+			os_delay_us(uiTimeToWait * usPerBeat);
+		}
+		sendMidiByte(pcCurCmd[0]);
+		sendMidiByte(pcCurCmd[1]);
+		if(pcCurCmd[2] != 0xFF)
+		{
+			sendMidiByte(pcCurCmd[2]);
+			uiCurPoint += 3;
+		}
+		else
+		{
+			uiCurPoint += 2;
+		}
 	}
-	sendMidiByte(pcCurCmd[0]);
-	sendMidiByte(pcCurCmd[1]);
-	if(pcCurCmd[2] != 0xFF)
-	{
-		sendMidiByte(pcCurCmd[2]);
-	}
-	else
-	{
-		return pcNMidi + 4;
-	}
-	return pcNMidi + 5;
 }
