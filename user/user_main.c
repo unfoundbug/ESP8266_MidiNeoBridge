@@ -224,15 +224,16 @@ connectToRemoteAP()
 }
 
 volatile uint32_t neoTime;
+#define pinHigh() PIN_OUT_SET = 0x04;
+#define pinLow()  PIN_OUT_CLEAR= 0x04;
+#define neo0() { pinHigh(); neoTime = 0x04; while(--neoTime); pinLow(); neoTime = 0x10; while(--neoTime);} ;
+#define neo1() { pinHigh(); neoTime = 0x09; while(--neoTime); pinLow(); neoTime = 0x0A; while(--neoTime);} ;
 
-#define neo0() {PIN_OUT_SET = 0x04; neoTime = 1; for(; neoTime > 0; neoTime--); PIN_OUT_CLEAR = 0x04; neoTime = 3; for(; neoTime > 0; neoTime--);;}
-#define neo1() {PIN_OUT_SET = 0x04; neoTime = 3; for(; neoTime > 0; neoTime--); PIN_OUT_CLEAR = 0x04; neoTime = 1; for(; neoTime > 0; neoTime--);;}
+#define neoBit(bByte, oSet) {if(bByte&oSet) {neo1();} else{ neo0();} }
 
-#define neoBit(bByte, oSet) {if(bByte&oSet) {neo0();} else{ neo1();}}
-
-#define sendneoByte(bByte)	{neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
+#define sendneoByte(bByte)	{   neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
 								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBit(bByte, 0x01);}
-#define neoLatch()	neoTime = 42; while(--neoTime);
+#define neoLatch()	pinLow(); neoTime = 100; while(--neoTime);
 
 //Init function 
 void ICACHE_FLASH_ATTR
@@ -259,16 +260,46 @@ user_init()
 	//Setup GPIO and data buffer
 	gpio_init();
 	PIN_DIR_OUTPUT = 0x04;
-	PIN_OUT_SET = 0x04;
 	os_printf("GPIO Enabled\n\r");
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
 	PIN_OUT_CLEAR = 0x04; //Init NeoLine;
 	while(1)
 	{
-	int i = 0;
-	for(i = 1; i < 60; ++i)
-		sendneoByte(i);
-	neoLatch();
+		int i = 0;
+		int j;
+		for(j = 0; j < 255; ++j)
+		{
+			for(i = 1; i < 29; ++i)
+			{
+				sendneoByte(j);
+				sendneoByte(255-j);
+				sendneoByte(0);
+			}
+			neoLatch();
+		}
+		os_delay_us(1000000);
+		for(j = 0; j < 255; ++j)
+		{
+			for(i = 1; i < 29; ++i)
+			{
+				sendneoByte(255-j);
+				sendneoByte(0);
+				sendneoByte(j);
+			}
+			neoLatch();
+		}
+		os_delay_us(1000000);
+		for(j = 0; j < 255; ++j)
+		{
+			for(i = 1; i < 29; ++i)
+			{
+				sendneoByte(0);
+				sendneoByte(j);
+				sendneoByte(255-j);
+			}
+			neoLatch();
+		}
+		os_delay_us(1000000);
 	}
 	
 	os_timer_disarm(&tStatusTimer);
