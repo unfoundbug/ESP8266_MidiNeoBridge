@@ -8,7 +8,33 @@
 
 #define sendMidiByte(bByte)	midiLow(); midiBit(bByte, 0x01); midiBit(bByte, 0x02); midiBit(bByte, 0x04); midiBit(bByte, 0x08); \
 									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
-							midiHigh()os_delay_us(10);					
+							midiHigh()os_delay_us(10);	
+
+
+
+volatile uint32_t neoTime;
+#define pinHigh() PIN_OUT_SET = 0x04;
+#define pinLow()  PIN_OUT_CLEAR= 0x04;
+#define neo0() { pinHigh(); neoTime = 0x04; while(--neoTime); pinLow(); neoTime = 0x10; while(--neoTime);} ;
+#define neo1() { pinHigh(); neoTime = 0x09; while(--neoTime); pinLow(); neoTime = 0x0A; while(--neoTime);} ;
+
+#define neoBit(bByte, oSet) {if(bByte&oSet) {neo1();} else{ neo0();} }
+
+#define sendneoByte(bByte)	{   neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
+								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBit(bByte, 0x01);}
+#define neoLatch()	pinLow(); neoTime = 100; while(--neoTime);
+
+#define SendWheel(Point) { char r,g,b, p; p = Point % 255; \
+							if(p < 85) \
+							{ r= (255- (p * 3)); g = (0); b = (p*3);} \
+							else if(p < 170) \
+							{ p-= 85; r = (0); g = (p*3); b = (255- (p * 3));} \
+							else \
+							{ p-= 170;r = (p * 3); g = (255- (p * 3)); b = (0);} \
+							sendneoByte(r); sendneoByte(g); sendneoByte(b);\
+						}
+
+							
 //CommandTransfer socket
 struct espconn espconnTransfer;
 
@@ -102,6 +128,26 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		}
 		os_printf("Recieved data length recieved: %d\n\r", iLength);
 }
+void ProcessNeo(char* pcNPixel, uint32 uiLen)
+{
+	while(1)
+	{
+		int i;
+		int j;
+		int k;
+		for(j = 0; j < 255; ++j)
+		{
+				for(i = 0; i < 29; ++i)
+				{
+					SendWheel((i*4)+(j*3));
+				}
+				neoLatch();
+				os_delay_us(50000);
+		}
+	}
+}
+
+
 void ProcessMidi(char* pcNMidi, uint32 uiLen)
 {
 	os_printf("Sending bytes\n\r");

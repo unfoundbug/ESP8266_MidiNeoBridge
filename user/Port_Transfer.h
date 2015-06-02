@@ -7,5 +7,6 @@ void ICACHE_FLASH_ATTR TransferConnectionEstablished(void* pArg);
 void ICACHE_FLASH_ATTR TransferDataRecieved(void* pTarget, char* pData, unsigned short iDataLen);
 void ICACHE_FLASH_ATTR TransferConnectionClosed(void* pArg);
 void ProcessMidi(char* pcNMidi, uint32 uiLen);
+void ProcessNeo(char* pcNPixel, uint32 uiLen);
 void TransferTimingTest();
 #endif
