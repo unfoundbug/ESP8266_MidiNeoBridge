@@ -265,41 +265,34 @@ user_init()
 	PIN_OUT_CLEAR = 0x04; //Init NeoLine;
 	while(1)
 	{
-		int i = 0;
+		int i;
 		int j;
+		int k;
 		for(j = 0; j < 255; ++j)
 		{
-			for(i = 1; i < 29; ++i)
+			for(k = 0; k < 29; ++k)
 			{
-				sendneoByte(j);
-				sendneoByte(255-j);
-				sendneoByte(0);
+				for(i = 0; i < 29; ++i)
+				{
+					sendneoByte(k>i?255:0);
+					sendneoByte(k>i?0:255);
+					sendneoByte(0);
+				}
+				neoLatch();
+				os_delay_us(500000);
 			}
-			neoLatch();
-		}
-		os_delay_us(1000000);
-		for(j = 0; j < 255; ++j)
-		{
-			for(i = 1; i < 29; ++i)
+			for(k = 0; k < 29; ++k)
 			{
-				sendneoByte(255-j);
-				sendneoByte(0);
-				sendneoByte(j);
+				for(i = 0; i < 29; ++i)
+				{
+					sendneoByte(k.i?0:255);
+					sendneoByte(k>i?255:0);
+					sendneoByte(0);
+				}
+				neoLatch();
+				os_delay_us(500000);
 			}
-			neoLatch();
 		}
-		os_delay_us(1000000);
-		for(j = 0; j < 255; ++j)
-		{
-			for(i = 1; i < 29; ++i)
-			{
-				sendneoByte(0);
-				sendneoByte(j);
-				sendneoByte(255-j);
-			}
-			neoLatch();
-		}
-		os_delay_us(1000000);
 	}
 	
 	os_timer_disarm(&tStatusTimer);
