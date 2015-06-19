@@ -49,13 +49,15 @@ namespace SerialCommand
         {
             if (serialPort1.IsOpen)
             {
+                int iBytesRead = 0;
                 if (textBox1.Lines.Count() > textBox1.Height / textBox1.Font.Height)
                     textBox1.Lines = textBox1.Lines.Skip(1).ToArray();
-                while (serialPort1.BytesToRead > 0)
+                while (serialPort1.BytesToRead > 0 && iBytesRead < 20)
                 {
                     char c = (char)serialPort1.ReadChar();
                     textBox1.Text += c;
                     if (c == '\n') return;
+                    ++iBytesRead;
                 }
             }
             else

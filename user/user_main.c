@@ -251,7 +251,6 @@ user_init()
 	os_printf("GPIO Enabled\n\r");
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
 	PIN_OUT_CLEAR = 0x04; //Init NeoLine;
-	ProcessNeo(0,0);
 		
 	os_timer_disarm(&tStatusTimer);
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);

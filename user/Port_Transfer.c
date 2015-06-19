@@ -15,13 +15,19 @@
 volatile uint32_t neoTime;
 #define pinHigh() PIN_OUT_SET = 0x04;
 #define pinLow()  PIN_OUT_CLEAR= 0x04;
-#define neo0() { pinHigh(); neoTime = 0x04; while(--neoTime); pinLow(); neoTime = 0x10; while(--neoTime);} ;
-#define neo1() { pinHigh(); neoTime = 0x09; while(--neoTime); pinLow(); neoTime = 0x0A; while(--neoTime);} ;
 
+#define neo0() { pinHigh(); neoTime = 0x03; while(--neoTime); pinLow(); neoTime = 0x11; while(--neoTime);} ;
+#define neo1() { pinHigh(); neoTime = 0x0A; while(--neoTime); pinLow(); neoTime = 0x09; while(--neoTime);} ;
 #define neoBit(bByte, oSet) {if(bByte&oSet) {neo1();} else{ neo0();} }
 
+
+#define neo0RedWait() { pinHigh(); neoTime = 0x03; while(--neoTime); pinLow(); neoTime = 0x11; while(--neoTime);} ;
+#define neo1RedWait() { pinHigh(); neoTime = 0x0A; while(--neoTime); pinLow(); neoTime = 0x09; while(--neoTime);} ;
+#define neoBitRedWait(bByte, oSet) {if(bByte&oSet) {neo1RedWait();} else{ neo0RedWait();} }
+
+
 #define sendneoByte(bByte)	{   neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
-								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBit(bByte, 0x01);}
+								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBitRedWait(bByte, 0x01);}
 #define neoLatch()	pinLow(); neoTime = 100; while(--neoTime);
 
 #define SendWheel(Point) { char r,g,b, p; p = Point % 255; \
@@ -84,7 +90,6 @@ TransferConnectionEstablished(void* pArg)
 	struct espconn * pConnection = (struct espconn*) pArg;
 	espconnClient = pConnection;
 	espconn_regist_time(pConnection, 120, 0);
-	os_printf("Connection established to Transfer server\n\r");
 	giDataLen = 0;
 	giDataMax = 0;
 	espconn_regist_recvcb(pConnection, TransferDataRecieved);
@@ -95,7 +100,6 @@ void ICACHE_FLASH_ATTR
 TransferConnectionClosed(void* pArg)
 {
 	struct espconn * pConnection =  (struct espconn*) pArg;
-	os_printf("Connection dropped from command server\n\r");
 }
 uint32_t usPerBeat;
 
@@ -107,10 +111,7 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		char i;
 		if(giDataMax == 0)
 		{
-			for(i = 0; i < 8; ++i)
-				os_printf("%d ", pData[i]);
 			giDataMax = (pData[0] << 8) | pData[1];
-			os_printf("\n\rNew max length: %d\n\r", giDataMax);
 			pDataToRead = pData + 2;
 			iToRead -= 2;
 		}
@@ -118,19 +119,27 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		giDataLen+=iToRead;
 		if(giDataLen == giDataMax)
 		{
-			os_printf("SendingData");
 			usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
-			os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax, usPerBeat);
-			ProcessMidi(gpDataBuffer+2, giDataMax - 2);
+			switch (sysCfg.conbOutputMode)
+			{
+				case  '1':
+				{
+					os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax, usPerBeat);
+					ProcessMidi(gpDataBuffer+2, giDataMax - 2);
+				}break;
+				default:
+				{
+					ProcessNeo(gpDataBuffer+2, giDataMax - 2);
+				}break;
+			}
+			espconn_sent(pTarget, "Done", 5);
 			giDataLen = 0;
 			giDataMax = 0;
-			os_printf("Packet Complete\n\r");
 		}
-		os_printf("Recieved data length recieved: %d\n\r", iLength);
 }
 void ProcessNeo(char* pcNPixel, uint32 uiLen)
 {
-	while(1)
+	/*while(1)
 	{
 		int i;
 		int j;
@@ -139,18 +148,25 @@ void ProcessNeo(char* pcNPixel, uint32 uiLen)
 		{
 				for(i = 0; i < 29; ++i)
 				{
-					SendWheel((i*4)+(j*3));
+					SendWheel((i*8)+(j*8));
 				}
 				neoLatch();
-				os_delay_us(50000);
+				os_delay_us(90000);
 		}
+	}*/
+	uint32 iCount;
+	for(iCount = 0; iCount < uiLen; iCount +=3)
+	{
+		sendneoByte(pcNPixel[iCount]);
+		sendneoByte(pcNPixel[iCount+1]);
+		sendneoByte(pcNPixel[iCount+2]);
 	}
+	neoLatch();
 }
 
 
 void ProcessMidi(char* pcNMidi, uint32 uiLen)
 {
-	os_printf("Sending bytes\n\r");
 	uint32 uiCurPoint = 0;
 	while(uiLen > uiCurPoint)
 	{
