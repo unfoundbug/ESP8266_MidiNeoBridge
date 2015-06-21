@@ -9,6 +9,7 @@ import android.widget.SeekBar;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.DatagramPacket;
@@ -69,16 +70,18 @@ public class basepage extends ActionBarActivity {
                            if (m_sBroadcastSocket == null || m_sBroadcastSocket.isClosed()) {
                                m_sBroadcastSocket = new DatagramSocket(8282);
                                m_sBroadcastSocket.setBroadcast(true);
+                               m_sBroadcastSocket.setSoTimeout(60000);
                            }
                            DatagramPacket udpPacket = new DatagramPacket(recvBuf, 64);
                            m_sBroadcastSocket.receive(udpPacket);
                            m_sTargetNeo = udpPacket.getAddress().getHostAddress();
                            strMessage = ("Recieved - " + m_sTargetNeo);
                            m_bOkToSend = true;
-                           m_sBroadcastSocket.close();
+
                        } catch (Exception ex) {
                            strMessage = ("Failed - " + ex.getMessage());
                            m_bOkToSend = false;
+                           m_sBroadcastSocket.close();
                        }
                        final String strForUI = strMessage;
                        runOnUiThread(new Runnable() {
@@ -117,6 +120,7 @@ public class basepage extends ActionBarActivity {
                                     InetAddress ia = InetAddress.getByName(m_sTargetNeo);
                                     if(!s.isConnected()) {
                                         s = new Socket(ia, 8081);
+                                        s.setSoTimeout(500);
                                         outStream = s.getOutputStream();
                                         iStream = s.getInputStream();
                                     }
@@ -124,12 +128,25 @@ public class basepage extends ActionBarActivity {
                                         outStream.write(sendBuf, 0, 92);
                                         iStream.read(sendBuf);
                                     }
-
+                                    Thread.sleep(100);
                                 } else {
-
+                                    Thread.sleep(2000);
                                 }
                             } catch (Exception ex) {
                                 m_bOkToSend = false;
+                                try {
+                                    s.close();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                final String strForUI = "Failed To Send";
+                                runOnUiThread(new Runnable() {
+
+                                    @Override
+                                    public void run() {
+                                        m_tBroadcastResult.setText(strForUI.toCharArray(), 0, strForUI.length());
+                                    }
+                                });
                             }
                         }
                     }
