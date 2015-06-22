@@ -169,7 +169,7 @@ void ProcessNeo(char* pcNPixel, uint32 uiLen)
 		sendneoByte(pcNPixel[iCount+2]);
 	}
 	os_intr_unlock();
-	neoLatch();
+	os_delay_us(6);
 	ets_wdt_enable();
 }
 
