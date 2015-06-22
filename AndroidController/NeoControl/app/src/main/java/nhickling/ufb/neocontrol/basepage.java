@@ -1,10 +1,13 @@
 package nhickling.ufb.neocontrol;
 
+import android.graphics.Color;
 import android.provider.ContactsContract;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -27,6 +30,7 @@ public class basepage extends ActionBarActivity {
     SeekBar m_sBarG;
     SeekBar m_sBarB;
     TextView m_tBroadcastResult;
+    Button m_bModeChange;
 
     int[] bColour= new int[3];
 
@@ -36,8 +40,10 @@ public class basepage extends ActionBarActivity {
     Boolean m_bOkToSend;
     DatagramSocket m_sBroadcastSocket;
 
-
-
+    enum LightOutMode{
+        RGB, RAINBOW, MODE_COUNT
+    }
+    LightOutMode m_eLightOut;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +63,12 @@ public class basepage extends ActionBarActivity {
         m_sBarB.setOnSeekBarChangeListener(seekChangeHandler);
 
         m_tBroadcastResult = (TextView) findViewById((R.id.textBroadcast));
+
+        m_bModeChange = (Button) findViewById(R.id.button);
+        m_bModeChange.setOnClickListener(buttonClickHandler);
+        m_eLightOut = LightOutMode.RGB;
+        m_bModeChange.setText(m_eLightOut.toString());
+
 
         m_bOkToSend = false;
         m_tBroadcastReciever = new Thread(
@@ -104,17 +116,43 @@ public class basepage extends ActionBarActivity {
                         OutputStream outStream = null;
                         InputStream iStream = null;
                         byte[] sendBuf = new byte[92];
+                        byte bCycleCount = 0;
                         while (true) {
                             try {
+                                ++bCycleCount;
                                 if (m_bOkToSend) {
 
                                     //build packet
                                     sendBuf[0] = 0;
                                     sendBuf[1] = 90;
-                                    for (int i = 0; i < 30; ++i) {
-                                        sendBuf[(i * 3) + 2] = (byte)bColour[0];
-                                        sendBuf[(i * 3) + 3] = (byte)bColour[2];
-                                        sendBuf[(i * 3) + 4] = (byte)bColour[1];
+                                    if(m_eLightOut == LightOutMode.RGB) {
+                                        for (int i = 0; i < 30; ++i) {
+                                            sendBuf[(i * 3) + 2] = (byte) bColour[0];
+                                            sendBuf[(i * 3) + 3] = (byte) bColour[2];
+                                            sendBuf[(i * 3) + 4] = (byte) bColour[1];
+                                        }
+                                    }else {
+                                        byte bCurrentCount = bCycleCount;
+                                        int r,g,b;
+                                        for(int i = 0; i < 30; ++i) {
+                                            ++bCycleCount;
+                                            float[] hsv = new float[3];
+                                            float hue = (bCycleCount + (i * (bColour[0]))) * (float)1.4;
+                                            while(hue > 360) hue -= 360;
+                                            hsv[0] = hue;
+                                            hsv[1] = (bColour[1] / 255.0f);
+                                            hsv[2] = (bColour[2] / 255.0f);
+                                            int c = Color.HSVToColor(hsv);
+                                            r = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            g = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            b = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            sendBuf[(i * 3) + 2] = (byte) r;
+                                            sendBuf[(i * 3) + 3] = (byte) g;
+                                            sendBuf[(i * 3) + 4] = (byte) b;
+                                        }
                                     }
 
                                     InetAddress ia = InetAddress.getByName(m_sTargetNeo);
@@ -194,5 +232,15 @@ public class basepage extends ActionBarActivity {
         public void onStartTrackingTouch(SeekBar seekBar) {
             onProgressChanged(seekBar, seekBar.getProgress(), false);
         }
+    };
+
+    Button.OnClickListener buttonClickHandler = new Button.OnClickListener() {
+        public void onClick(View v) {
+            if(m_eLightOut == LightOutMode.RAINBOW)
+                m_eLightOut = LightOutMode.RGB;
+            else
+                m_eLightOut = LightOutMode.RAINBOW;
+            m_bModeChange.setText(m_eLightOut.toString());
+        };
     };
 }
