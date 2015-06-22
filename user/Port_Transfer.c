@@ -10,25 +10,30 @@
 									  midiBit(bByte, 0x10); midiBit(bByte, 0x20); midiBit(bByte, 0x40); midiBit(bByte, 0x80); \
 							midiHigh()os_delay_us(10);	
 
-
-
-volatile uint32_t neoTime;
+uint32_t ccount;
+uint32_t targetCount;
+#define UpdateCycleCount() {__asm__ __volatile__("rsr %0,ccount":"=a" (ccount));}
+#define waitTillEnd() {do {UpdateCycleCount();} while(ccount < targetCount);};
+#define T0H 5
+#define T0L 96
+#define T1H 160
+#define T1L 104
+							
 #define pinHigh() PIN_OUT_SET = 0x04;
 #define pinLow()  PIN_OUT_CLEAR= 0x04;
-
-#define neo0() { pinHigh(); neoTime = 0x03; while(--neoTime); pinLow(); neoTime = 0x11; while(--neoTime);} ;
-#define neo1() { pinHigh(); neoTime = 0x0A; while(--neoTime); pinLow(); neoTime = 0x09; while(--neoTime);} ;
+//40 high, 96 low
+#define neo0() { UpdateCycleCount(); pinHigh(); targetCount = T0H + ccount; waitTillEnd(); \
+                 UpdateCycleCount(); pinLow();  targetCount = T0L + ccount; waitTillEnd();}
+//160 high 104 low
+#define neo1() { UpdateCycleCount(); pinHigh(); targetCount = T1H + ccount; waitTillEnd(); \
+                  UpdateCycleCount();pinLow();  targetCount = T1L + ccount; waitTillEnd();}
+				 
+				 
 #define neoBit(bByte, oSet) {if(bByte&oSet) {neo1();} else{ neo0();} }
 
-
-#define neo0RedWait() { pinHigh(); neoTime = 0x03; while(--neoTime); pinLow(); neoTime = 0x11; while(--neoTime);} ;
-#define neo1RedWait() { pinHigh(); neoTime = 0x0A; while(--neoTime); pinLow(); neoTime = 0x09; while(--neoTime);} ;
-#define neoBitRedWait(bByte, oSet) {if(bByte&oSet) {neo1RedWait();} else{ neo0RedWait();} }
-
-
 #define sendneoByte(bByte)	{   neoBit(bByte, 0x80); neoBit(bByte, 0x40); neoBit(bByte, 0x20); neoBit(bByte, 0x10); \
-								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBitRedWait(bByte, 0x01);}
-#define neoLatch()	pinLow(); neoTime = 100; while(--neoTime);
+								neoBit(bByte, 0x08); neoBit(bByte, 0x04); neoBit(bByte, 0x02); neoBit(bByte, 0x01);}
+#define neoLatch()	pinLow(); ccount = 100; while(--ccount);
 
 #define SendWheel(Point) { char r,g,b, p; p = Point % 255; \
 							if(p < 85) \
@@ -155,13 +160,17 @@ void ProcessNeo(char* pcNPixel, uint32 uiLen)
 		}
 	}*/
 	uint32 iCount;
+	ets_wdt_disable();
+	os_intr_lock();
 	for(iCount = 0; iCount < uiLen; iCount +=3)
 	{
 		sendneoByte(pcNPixel[iCount]);
 		sendneoByte(pcNPixel[iCount+1]);
 		sendneoByte(pcNPixel[iCount+2]);
 	}
+	os_intr_unlock();
 	neoLatch();
+	ets_wdt_enable();
 }
 
 
