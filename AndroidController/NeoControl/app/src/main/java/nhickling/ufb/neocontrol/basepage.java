@@ -116,7 +116,8 @@ public class basepage extends ActionBarActivity {
                         OutputStream outStream = null;
                         InputStream iStream = null;
                         byte[] sendBuf = new byte[92];
-                        byte bCycleCount = 0;
+                        int bCycleCount = 0;
+                        int bCycleSubCount = 0;
                         while (true) {
                             try {
                                 ++bCycleCount;
@@ -132,22 +133,25 @@ public class basepage extends ActionBarActivity {
                                             sendBuf[(i * 3) + 4] = (byte) bColour[1];
                                         }
                                     }else {
-                                        byte bCurrentCount = bCycleCount;
+                                        bCycleCount++;
+                                        int bCurrentCount = bCycleCount;
                                         int r,g,b;
                                         for(int i = 0; i < 30; ++i) {
-                                            ++bCycleCount;
+                                            ++bCurrentCount;
                                             float[] hsv = new float[3];
-                                            float hue = (bCycleCount + (i * (bColour[0]))) * (float)1.4;
+                                            float hue = (bCurrentCount + (i * (bColour[1] / 8.5f))) * (float)1.4;
                                             while(hue > 360) hue -= 360;
                                             hsv[0] = hue;
-                                            hsv[1] = (bColour[1] / 255.0f);
+                                            hsv[1] = 1.0f;
                                             hsv[2] = (bColour[2] / 255.0f);
+
+
                                             int c = Color.HSVToColor(hsv);
                                             r = (byte) (c & 0xFF);
                                             c = c >> 8;
-                                            g = (byte) (c & 0xFF);
-                                            c = c >> 8;
                                             b = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            g = (byte) (c & 0xFF);
                                             c = c >> 8;
                                             sendBuf[(i * 3) + 2] = (byte) r;
                                             sendBuf[(i * 3) + 3] = (byte) g;
@@ -166,7 +170,7 @@ public class basepage extends ActionBarActivity {
                                         outStream.write(sendBuf, 0, 92);
                                         iStream.read(sendBuf);
                                     }
-                                    Thread.sleep(100);
+                                    Thread.sleep(bColour[0]+1);
                                 } else {
                                     Thread.sleep(2000);
                                 }
