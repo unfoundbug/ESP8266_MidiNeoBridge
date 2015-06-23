@@ -118,6 +118,7 @@ public class basepage extends ActionBarActivity {
                         byte[] sendBuf = new byte[92];
                         int bCycleCount = 0;
                         int bCycleSubCount = 0;
+                        int iTimeToWait = 10;
                         while (true) {
                             try {
                                 ++bCycleCount;
@@ -136,6 +137,7 @@ public class basepage extends ActionBarActivity {
                                         bCycleCount++;
                                         int bCurrentCount = bCycleCount;
                                         int r,g,b;
+                                        iTimeToWait = bColour[0] + 2;
                                         for(int i = 0; i < 30; ++i) {
                                             ++bCurrentCount;
                                             float[] hsv = new float[3];
@@ -170,7 +172,7 @@ public class basepage extends ActionBarActivity {
                                         outStream.write(sendBuf, 0, 92);
                                         iStream.read(sendBuf);
                                     }
-                                    Thread.sleep(bColour[0]+1);
+                                    Thread.sleep(iTimeToWait);
                                 } else {
                                     Thread.sleep(2000);
                                 }
