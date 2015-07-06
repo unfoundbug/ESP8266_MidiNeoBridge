@@ -84,14 +84,8 @@ MODULE_INCDIR	:= $(addsuffix /include,$(INCDIR))
 FW_FILE_1	:= $(addprefix $(FW_BASE)/,$(FW_FILE_1).bin)
 FW_FILE_2	:= $(addprefix $(FW_BASE)/,$(FW_FILE_2).bin)
 
-V ?= $(VERBOSE)
-ifeq ("$(V)","1")
 Q :=
 vecho := @true
-else
-Q := @
-vecho := @echo
-endif
 
 vpath %.c $(SRC_DIR)
 
