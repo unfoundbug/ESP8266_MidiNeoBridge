@@ -1,0 +1,93 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DA6F7121-0609-470B-8016-30FBB26DA389}</ProjectGuid>
+    <Keyword>MakeFileProj</Keyword>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Makefile</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <NMakeBuildCommandLine>C:\SVN\ESP\trunk\Build.bat</NMakeBuildCommandLine>
+    <NMakeOutput>
+    </NMakeOutput>
+    <NMakeCleanCommandLine>C:\SVN\ESP\trunk\Clean.bat</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeReBuildCommandLine>C:\SVN\ESP\trunk\Rebuild.bat</NMakeReBuildCommandLine>
+    <NMakeIncludeSearchPath>C:\SVN\ESP\trunk\user;C:\Esp8266\ESP8266_SDK\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <NMakeBuildCommandLine>C:\SVN\ESP\trunk\Build.bat</NMakeBuildCommandLine>
+    <NMakeOutput>ESPAsVisStudio.exe</NMakeOutput>
+    <NMakeCleanCommandLine>C:\SVN\ESP\trunk\Clean.bat</NMakeCleanCommandLine>
+    <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeReBuildCommandLine>C:\SVN\ESP\trunk\Rebuild.bat</NMakeReBuildCommandLine>
+    <NMakeIncludeSearchPath>C:\SVN\ESP\trunk\user;C:\Esp8266\ESP8266_SDK\include;$(NMakeIncludeSearchPath)</NMakeIncludeSearchPath>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="readme.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\user\NonVol.c" />
+    <ClCompile Include="..\..\..\user\Port_Command.c" />
+    <ClCompile Include="..\..\..\user\Port_HTTP.c" />
+    <ClCompile Include="..\..\..\user\Port_Transfer.c" />
+    <ClCompile Include="..\..\..\user\response.c" />
+    <ClCompile Include="..\..\..\user\user_main.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\at_custom.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\c_types.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\eagle_soc.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\espconn.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\ets_sys.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\gpio.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\ip_addr.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\mem.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\osapi.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\os_type.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\ping.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\queue.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\smartconfig.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\spi_flash.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\upgrade.h" />
+    <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\user_interface.h" />
+    <ClInclude Include="..\..\..\user\application.h" />
+    <ClInclude Include="..\..\..\user\NonVol.h" />
+    <ClInclude Include="..\..\..\user\Port_Command.h" />
+    <ClInclude Include="..\..\..\user\Port_HTTP.h" />
+    <ClInclude Include="..\..\..\user\Port_Transfer.h" />
+    <ClInclude Include="..\..\..\user\user_config.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
