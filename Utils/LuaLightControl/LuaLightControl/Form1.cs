@@ -9,14 +9,15 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
 using System.IO.Ports;
+using ESPWifiLink;
 using NLua;
 
 namespace LuaLightControl
 {
     public partial class Form1 : Form
     {
+        WifiController m_wWifiInteraction = new WifiController();
         LuaInterface lInterface = new LuaInterface();
-        SerialInterface sInterface = new SerialInterface();
         public Form1()
         {
             InitializeComponent();
@@ -33,7 +34,7 @@ namespace LuaLightControl
             lstScripts.Items.Clear();
             //if (fbdFolderSelector.ShowDialog() == System.Windows.Forms.DialogResult.OK)
             {
-                fbdFolderSelector.SelectedPath = "C:\\Users\\Unfoundbug\\Documents\\SyncedDocuments\\Source\\Lua";
+                fbdFolderSelector.SelectedPath = "C:\\SVN\\ESP\\trunk\\Utils\\Lua";
                 //fbdFolderSelector.SelectedPath = "E:\\Shares\\SyncDocuments\\Source\\Lua";
                 //fbdFolderSelector.SelectedPath = "G:\\Lua";
                 Directory.SetCurrentDirectory(fbdFolderSelector.SelectedPath);
@@ -69,10 +70,6 @@ namespace LuaLightControl
                 lInterface.DoFile(fbdFolderSelector.SelectedPath + "\\" + lstScripts.SelectedItem.ToString());
                 lblDirectory.Text = lstScripts.SelectedItem.ToString();
                 numericUpDown1_ValueChanged(null, null);
-                if (!sInterface.isConnected())
-                {
-                    sInterface.ConnectAttempt();
-                }
                 bgWorker.RunWorkerAsync();
             }
             catch (Exception ex)
@@ -107,6 +104,7 @@ namespace LuaLightControl
                 this.Controls.Add(pb);
                 m_pbList.Add(pb);
             }
+            m_wWifiInteraction.Start();
             
         }
         int iFrame = 0;
@@ -118,8 +116,7 @@ namespace LuaLightControl
                 if (i < m_pbList.Count())
                     m_pbList[i].BackColor = drawResult[i];
             }
-            sInterface.SendEntireStrip(drawResult);
-                iFrame = iFrame;
+            m_wWifiInteraction.SetDrawDetails(drawResult);
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
@@ -147,7 +144,7 @@ namespace LuaLightControl
         {
             if (cbEnableDraw.Checked == false)
             {
-                sInterface.ClearStrip();
+                //sInterface.ClearStrip();
             }
         }
 
@@ -162,6 +159,17 @@ namespace LuaLightControl
             {
                 textBox1.Text = ex.ToString() + "\n" + ex.InnerException;
             }
+        }
+
+        private void timer1_Tick(object sender, EventArgs e)
+        {
+            lblNetwork.Text = m_wWifiInteraction.ToString();
+        }
+
+        private void textBox2_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+                button3_Click(null, null);
         }
     }
     public class LuaInterface
@@ -261,102 +269,7 @@ namespace LuaLightControl
     }
     public class SerialInterface
     {
-        bool m_bConnected = false;
-        SelectSerial m_selectPage;
-        SerialPort m_spPort = null;
-
-        byte[] bCmdBuffer = new byte[3];
-        byte[] bDataBuffer = new byte[64];
-        byte[] bResponseBuffer = new byte[3];
         bool bLockTransfer;
 
-        private void bgWorker_Connect(object sender, DoWorkEventArgs e)
-        {
-            m_selectPage = new SelectSerial(this);
-            m_selectPage.ShowDialog();
-        }
-        public void ConnectTo(string strPortName)
-        {
-            if (strPortName == null || strPortName.Length == 0)
-            {
-                m_selectPage = null;
-                return;
-            }
-            m_spPort = new SerialPort();
-            m_spPort.BaudRate = 9600;
-            m_spPort.ReadBufferSize = 2;
-            m_spPort.WriteBufferSize = 66;
-            m_spPort.ReadTimeout = 5;
-            m_spPort.WriteTimeout = 300;
-            m_spPort.PortName = strPortName;
-            m_spPort.Open();
-            SendCommandPacket('c', (byte)64);
-            
-        }
-
-        void SendCommandPacket(char bCmd, byte bExpandedSize)
-        {
-
-            try
-            {
-                bCmdBuffer[0] = (byte)bCmd;
-                bCmdBuffer[1] = bExpandedSize;
-                bCmdBuffer[2] = 0xFF;
-                if (m_spPort.IsOpen)
-                {
-                    while (bLockTransfer) ;
-                    bLockTransfer = true;
-                    m_spPort.Write(bCmdBuffer, 0, 2);
-                    if (bExpandedSize > 0)
-                        m_spPort.Write(bDataBuffer, 0, bCmdBuffer[1]);
-                    bLockTransfer = false;
-                }
-            }
-            catch (Exception Ex)
-            {
-            }
-        }
-        void SendSubStrip(int iOffset, int count, ref Color[] bStripColour)
-        {
-            bDataBuffer[0] = (byte)iOffset;
-            for (int i = 0; i < count; ++i)
-            {
-                bDataBuffer[1 + (i * 3)] = bStripColour[i + iOffset].R;
-                bDataBuffer[2 + (i * 3)] = bStripColour[i + iOffset].G;
-                bDataBuffer[3 + (i * 3)] = bStripColour[i + iOffset].B;
-            }
-            SendCommandPacket('d', (byte)64);
-        }
-        public void SendEntireStrip(Color[] bStripColour)
-        {
-            if (m_spPort == null || !m_spPort.IsOpen)
-                return;
-            byte PixelsToDrive = (byte)bStripColour.Count();
-            bDataBuffer[0] = PixelsToDrive;
-           SendCommandPacket('a', 1);
-           int PixelsLeft = PixelsToDrive;
-           while (PixelsLeft > 0)
-           {
-               int pixelsBeingSent = PixelsLeft > 21 ? 21 : PixelsLeft;
-               SendSubStrip(PixelsToDrive - PixelsLeft, pixelsBeingSent, ref bStripColour);
-               PixelsLeft -= pixelsBeingSent;
-           }
-           SendCommandPacket('z', (byte)0);
-        }
-        public void ClearStrip()
-        {
-            SendCommandPacket('c', (byte)64);
-        }
-        public void ConnectAttempt()
-        {
-            BackgroundWorker bg = new BackgroundWorker();
-            bg.DoWork += new System.ComponentModel.DoWorkEventHandler(this.bgWorker_Connect);
-            bg.RunWorkerAsync();
-        }
-        public bool isConnected()
-        {
-            if (m_spPort == null) return false;
-            return m_spPort.IsOpen;
-        }
-    }
+     }
 }

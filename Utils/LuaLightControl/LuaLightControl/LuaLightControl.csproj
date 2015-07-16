@@ -68,12 +68,6 @@
     <Compile Include="ReferenceDesigns\TwinIntegerDesign.Designer.cs">
       <DependentUpon>TwinIntegerDesign.cs</DependentUpon>
     </Compile>
-    <Compile Include="SelectSerial.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="SelectSerial.Designer.cs">
-      <DependentUpon>SelectSerial.cs</DependentUpon>
-    </Compile>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
@@ -90,9 +84,6 @@
     <EmbeddedResource Include="ReferenceDesigns\TwinIntegerDesign.resx">
       <DependentUpon>TwinIntegerDesign.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="SelectSerial.resx">
-      <DependentUpon>SelectSerial.cs</DependentUpon>
-    </EmbeddedResource>
     <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
@@ -106,6 +97,12 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Libraries\ESPWifiLink\ESPWifiLink.csproj">
+      <Project>{5c9da528-2764-4e69-9736-75bc2b7e7be7}</Project>
+      <Name>ESPWifiLink</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
