@@ -14,11 +14,12 @@ uint32_t ccount;
 uint32_t targetCount;
 #define UpdateCycleCount() {__asm__ __volatile__("rsr %0,ccount":"=a" (ccount));}
 #define waitTillEnd() {do {UpdateCycleCount();} while(ccount < targetCount);};
+
 #define T0H 5
 #define T0L 96
 #define T1H 160
 #define T1L 104
-							
+uint16_t m_ui16OutputPins = 0x04;							
 #define pinHigh() PIN_OUT_SET = 0x04;
 #define pinLow()  PIN_OUT_CLEAR= 0x04;
 //40 high, 96 low
@@ -92,6 +93,7 @@ enableTransferServer(uint32 iTCPPort)
 void ICACHE_FLASH_ATTR
 TransferConnectionEstablished(void* pArg)
 {
+	os_printf("Connection Established\n\r");
 	struct espconn * pConnection = (struct espconn*) pArg;
 	espconnClient = pConnection;
 	espconn_regist_time(pConnection, 120, 0);
@@ -104,13 +106,20 @@ TransferConnectionEstablished(void* pArg)
 void ICACHE_FLASH_ATTR
 TransferConnectionClosed(void* pArg)
 {
+	os_printf("Connection closed\n\r");
 	struct espconn * pConnection =  (struct espconn*) pArg;
 }
 uint32_t usPerBeat;
-
-void ICACHE_FLASH_ATTR
-TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
+uint8_t bCounter = 0;
+void TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 {
+	if(bCounter == 0)
+	{
+		bCounter = 250;
+		os_printf("Memory left: %d\n\r", system_get_free_heap_size());
+	}
+	else
+		--bCounter;
 		char* pDataToRead = pData;
 		unsigned short iToRead = iLength;
 		char i;
@@ -124,20 +133,27 @@ TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 		giDataLen+=iToRead;
 		if(giDataLen == giDataMax)
 		{
-			usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
 			switch (sysCfg.conbOutputMode)
 			{
-				case  '1':
+				case  1:
 				{
-					os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax, usPerBeat);
+					usPerBeat = (gpDataBuffer[0] << 8)| gpDataBuffer[1];
+					os_printf("Starting to play %d bytes at %dus per beat\n\r", giDataMax - 2, usPerBeat);
 					ProcessMidi(gpDataBuffer+2, giDataMax - 2);
 				}break;
 				default:
 				{
+					
+					m_ui16OutputPins = gpDataBuffer[0];
+					m_ui16OutputPins = m_ui16OutputPins << 8;
+					m_ui16OutputPins |= gpDataBuffer[1];
+					m_ui16OutputPins &= 0x1111000000110101;
+					//os_printf("Starting to send %d bytes over ports %d\n\r", giDataMax - 2, m_ui16OutputPins);
 					ProcessNeo(gpDataBuffer+2, giDataMax - 2);
+					//os_printf("Done\n\r", giDataMax - 2);
 				}break;
 			}
-			espconn_sent(pTarget, "Done", 5);
+			espconn_sent(pTarget, "1", 1);
 			giDataLen = 0;
 			giDataMax = 0;
 		}
@@ -162,15 +178,13 @@ void ProcessNeo(char* pcNPixel, uint32 uiLen)
 	uint32 iCount;
 	ets_wdt_disable();
 	os_intr_lock();
-	for(iCount = 0; iCount < uiLen; iCount +=3)
+	for(iCount = 0; iCount < uiLen; iCount += 3)
 	{
-		sendneoByte(pcNPixel[iCount]);
 		sendneoByte(pcNPixel[iCount+1]);
+		sendneoByte(pcNPixel[iCount]);
 		sendneoByte(pcNPixel[iCount+2]);
 	}
 	os_intr_unlock();
-	os_delay_us(6);
-	ets_wdt_enable();
 }
 
 
