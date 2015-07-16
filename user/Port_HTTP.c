@@ -82,6 +82,17 @@ void ICACHE_FLASH_ATTR HTTPHandleDataSent(void* arg)
 	espconn_delete(pConnection);
 	os_printf("Send Done\r\n");
 }
+void ICACHE_FLASH_ATTR HTTPHandleSet(char* target, char* value)
+{
+	if(value[0] != 0)
+	{
+		os_sprintf(target, value);
+	}
+	else
+	{
+		os_memset(target, 0, 64);
+	}
+}
 void ICACHE_FLASH_ATTR
 HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 {
@@ -117,40 +128,35 @@ HTTPDataRecieved(void* arg, char* pData, uint16 iLength)
 				value[0] = 0;
 				++value;
 				os_printf("Setting: %s new value: %s\n\r", entry, value);
-			char* targetVal;
+				void* targetVal;
 				switch(entry[1])
 				{
 					case '0':
 					{
-						targetVal = sysCfg.station_ssid;
+						HTTPHandleSet(sysCfg.station_ssid, value);
 					}break;
 					case '1':
 					{
-						targetVal = sysCfg.station_pwd;
+						HTTPHandleSet(sysCfg.station_pwd, value);
 					}break;
 					case '2':
 					{
-						targetVal = sysCfg.localAP_ssid;
+						HTTPHandleSet(sysCfg.localAP_ssid, value);
 					}break;
 					case '3':
 					{
-						targetVal = sysCfg.localAP_pwd;
+						HTTPHandleSet(sysCfg.localAP_pwd, value);
 					}break;
 					case '5':
 					{
-						targetVal = sysCfg.identifier;
+						HTTPHandleSet(sysCfg.identifier, value);
 					}break;
-				}
-				if(value[0] != 0)
-				{
-					os_sprintf(targetVal, value);
-				}
-				else
-				{
-					os_memset(targetVal, 0, 64);
+					case '4':
+						{
+							sysCfg.conbOutputMode = value[0] - '0';
+						}break;
 				}
 			}
-			
 			curLoc = nexLoc;
 		}
 		while(nextSplit != -1);
