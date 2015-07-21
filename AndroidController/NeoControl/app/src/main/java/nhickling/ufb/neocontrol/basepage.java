@@ -22,6 +22,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Random;
 
 public class basepage extends ActionBarActivity {
 
@@ -41,7 +42,7 @@ public class basepage extends ActionBarActivity {
     DatagramSocket m_sBroadcastSocket;
 
     enum LightOutMode{
-        RGB, RAINBOW, MODE_COUNT
+        RGB, RAINBOW, FLASH, MODE_COUNT
     }
     LightOutMode m_eLightOut;
     @Override
@@ -115,28 +116,31 @@ public class basepage extends ActionBarActivity {
                         Socket s = new Socket();
                         OutputStream outStream = null;
                         InputStream iStream = null;
-                        byte[] sendBuf = new byte[92];
+                        byte[] sendBuf = new byte[94];
                         int bCycleCount = 0;
                         int bCycleSubCount = 0;
                         int iTimeToWait = 10;
+                        int r,g,b;
+                        int iBufferIter = 0;
                         while (true) {
                             try {
                                 ++bCycleCount;
                                 if (m_bOkToSend) {
 
                                     //build packet
-                                    sendBuf[0] = 0;
-                                    sendBuf[1] = 90;
+                                    sendBuf[iBufferIter++] = 0;
+                                    sendBuf[iBufferIter++] = 90;
+                                    sendBuf[iBufferIter++] = 0;
+                                    sendBuf[iBufferIter++] = 4;
                                     if(m_eLightOut == LightOutMode.RGB) {
                                         for (int i = 0; i < 30; ++i) {
-                                            sendBuf[(i * 3) + 2] = (byte) bColour[0];
-                                            sendBuf[(i * 3) + 3] = (byte) bColour[2];
-                                            sendBuf[(i * 3) + 4] = (byte) bColour[1];
+                                            sendBuf[iBufferIter++] = (byte) bColour[0];
+                                            sendBuf[iBufferIter++] = (byte) bColour[2];
+                                            sendBuf[iBufferIter++] = (byte) bColour[1];
                                         }
-                                    }else {
+                                    }else if (m_eLightOut == LightOutMode.RAINBOW){
                                         bCycleCount++;
                                         int bCurrentCount = bCycleCount;
-                                        int r,g,b;
                                         iTimeToWait = bColour[0] + 2;
                                         for(int i = 0; i < 30; ++i) {
                                             ++bCurrentCount;
@@ -155,9 +159,39 @@ public class basepage extends ActionBarActivity {
                                             c = c >> 8;
                                             g = (byte) (c & 0xFF);
                                             c = c >> 8;
-                                            sendBuf[(i * 3) + 2] = (byte) r;
-                                            sendBuf[(i * 3) + 3] = (byte) g;
-                                            sendBuf[(i * 3) + 4] = (byte) b;
+                                            sendBuf[iBufferIter++] = (byte) r;
+                                            sendBuf[iBufferIter++] = (byte) b;
+                                            sendBuf[iBufferIter++] = (byte) g;
+                                        }
+                                    }
+                                    else if(m_eLightOut == LightOutMode.FLASH) {
+                                        for(int i = 2; i < 92; ++i) {
+                                            int AmountToMove = Math.min(Math.abs(sendBuf[i] - (int) 0x09), 5);
+                                                sendBuf[i] -= (byte)AmountToMove;
+
+                                        }
+                                        Random rand = new Random();
+                                        if(rand.nextInt(255) < bColour[0]) {
+                                            int iNextFlash = rand.nextInt((25));
+                                            int iFlashWidth = rand.nextInt(3)+2;
+                                            int iRandHue = rand.nextInt(360);
+                                            float[] hsv = new float[3];
+                                            hsv[0] = iRandHue;
+                                            hsv[1] = bColour[1] / 255.0f;
+                                            hsv[2] = bColour[2] / 255.0f;
+                                            int c = Color.HSVToColor(hsv);
+                                            r = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            b = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            g = (byte) (c & 0xFF);
+                                            c = c >> 8;
+                                            for(int iToFlash = 0; iToFlash < iFlashWidth; ++iToFlash) {
+                                                int iLed = (iNextFlash + iToFlash) * 3;
+                                                sendBuf[iBufferIter++] = (byte)r;
+                                                sendBuf[iBufferIter++] = (byte)b;
+                                                sendBuf[iBufferIter++] = (byte)g;
+                                            }
                                         }
                                     }
 
@@ -244,6 +278,8 @@ public class basepage extends ActionBarActivity {
         public void onClick(View v) {
             if(m_eLightOut == LightOutMode.RAINBOW)
                 m_eLightOut = LightOutMode.RGB;
+            else if( m_eLightOut == LightOutMode.RGB)
+                m_eLightOut = LightOutMode.FLASH;
             else
                 m_eLightOut = LightOutMode.RAINBOW;
             m_bModeChange.setText(m_eLightOut.toString());
