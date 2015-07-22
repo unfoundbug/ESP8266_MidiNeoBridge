@@ -114,7 +114,8 @@ public class basepage extends ActionBarActivity {
                         Socket s = new Socket();
                         OutputStream outStream = null;
                         InputStream iStream = null;
-                        byte[] sendBuf = new byte[94];
+                        int iLedCount = 150;
+                        byte[] sendBuf = new byte[(iLedCount*3)+4];
                         int bCycleCount = 0;
                         int bCycleSubCount = 0;
                         int iTimeToWait = 10;
@@ -124,14 +125,14 @@ public class basepage extends ActionBarActivity {
                             try {
                                 ++bCycleCount;
                                 if (m_bOkToSend) {
-
+                                    int iCount = (iLedCount*3)+2;
                                     //build packet
-                                    sendBuf[iBufferIter++] = 0;
-                                    sendBuf[iBufferIter++] = 92;
+                                    sendBuf[iBufferIter++] = (byte)(iCount >> 8);
+                                    sendBuf[iBufferIter++] = (byte)(iCount & 0xFF);
                                     sendBuf[iBufferIter++] = 0;
                                     sendBuf[iBufferIter++] = 4;
                                     if(m_eLightOut == LightOutMode.RGB) {
-                                        for (int i = 0; i < 30; ++i) {
+                                        for (int i = 0; i < iLedCount; ++i) {
                                             sendBuf[iBufferIter++] = (byte) bColour[0];
                                             sendBuf[iBufferIter++] = (byte) bColour[2];
                                             sendBuf[iBufferIter++] = (byte) bColour[1];
@@ -140,7 +141,7 @@ public class basepage extends ActionBarActivity {
                                         bCycleCount++;
                                         int bCurrentCount = bCycleCount;
                                         iTimeToWait = bColour[0] + 2;
-                                        for(int i = 0; i < 30; ++i) {
+                                        for(int i = 0; i < iLedCount; ++i) {
                                             ++bCurrentCount;
                                             float[] hsv = new float[3];
                                             float hue = (bCurrentCount + (i * (bColour[1] / 8.5f))) * (float)1.4;
@@ -192,7 +193,7 @@ public class basepage extends ActionBarActivity {
                                             }
                                         }
                                     }
-
+                                    iBufferIter = 0;
                                     InetAddress ia = InetAddress.getByName(m_sTargetNeo);
                                     if(!s.isConnected()) {
                                         s = new Socket(ia, 8081);
@@ -201,7 +202,7 @@ public class basepage extends ActionBarActivity {
                                         iStream = s.getInputStream();
                                     }
                                     if(s.isConnected()) {
-                                        outStream.write(sendBuf, 0, --iBufferIter);
+                                        outStream.write(sendBuf);
                                         byte[] rcvBuf = new byte[1];
                                         while(s.getInputStream().available() == 0);
                                             iStream.read(rcvBuf);
