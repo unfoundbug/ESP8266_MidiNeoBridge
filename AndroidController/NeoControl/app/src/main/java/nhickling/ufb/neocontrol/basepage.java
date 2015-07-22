@@ -83,7 +83,7 @@ public class basepage extends ActionBarActivity {
                            if (m_sBroadcastSocket == null || m_sBroadcastSocket.isClosed()) {
                                m_sBroadcastSocket = new DatagramSocket(8282);
                                m_sBroadcastSocket.setBroadcast(true);
-                               m_sBroadcastSocket.setSoTimeout(60000);
+                               m_sBroadcastSocket.setSoTimeout(6000);
                            }
                            DatagramPacket udpPacket = new DatagramPacket(recvBuf, 64);
                            m_sBroadcastSocket.receive(udpPacket);
@@ -92,9 +92,7 @@ public class basepage extends ActionBarActivity {
                            m_bOkToSend = true;
 
                        } catch (Exception ex) {
-                           strMessage = ("Failed - " + ex.getMessage());
-                           m_bOkToSend = false;
-                           m_sBroadcastSocket.close();
+                           continue;
                        }
                        final String strForUI = strMessage;
                        runOnUiThread(new Runnable() {
@@ -129,7 +127,7 @@ public class basepage extends ActionBarActivity {
 
                                     //build packet
                                     sendBuf[iBufferIter++] = 0;
-                                    sendBuf[iBufferIter++] = 90;
+                                    sendBuf[iBufferIter++] = 92;
                                     sendBuf[iBufferIter++] = 0;
                                     sendBuf[iBufferIter++] = 4;
                                     if(m_eLightOut == LightOutMode.RGB) {
@@ -198,13 +196,15 @@ public class basepage extends ActionBarActivity {
                                     InetAddress ia = InetAddress.getByName(m_sTargetNeo);
                                     if(!s.isConnected()) {
                                         s = new Socket(ia, 8081);
-                                        s.setSoTimeout(500);
+                                        s.setSoTimeout(5000);
                                         outStream = s.getOutputStream();
                                         iStream = s.getInputStream();
                                     }
-                                    else {
-                                        outStream.write(sendBuf, 0, 92);
-                                        iStream.read(sendBuf);
+                                    if(s.isConnected()) {
+                                        outStream.write(sendBuf, 0, --iBufferIter);
+                                        byte[] rcvBuf = new byte[1];
+                                        while(s.getInputStream().available() == 0);
+                                            iStream.read(rcvBuf);
                                     }
                                     Thread.sleep(iTimeToWait);
                                 } else {
