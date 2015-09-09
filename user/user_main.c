@@ -1,6 +1,7 @@
 #include "user_config.h"
 #include "application.h"
-
+#include "DirectMemory.h"
+#include "i2sDrive.h"
 //Tasks
 #define user_procTaskPrio        0
 #define user_procTaskQueueLen    2
@@ -21,7 +22,13 @@ os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
 char rgcIpAddress[4];
-
+char rgcBufferTest[60];
+void initRGB()
+{
+	int i = 0;
+	for(; i < 60; ++i)
+		rgcBufferTest[i] = i*3;
+}
 //Called on a timers
 static void ICACHE_FLASH_ATTR
 StateEngine(os_event_t *events)
@@ -94,6 +101,7 @@ StateEngine(os_event_t *events)
 	{
 		if(gi_Broadcast_NextTime < uiCurrentTime)
 		{
+			if(bHasTransferClient()) return;
 			os_printf("Sending Broadcast\n\r");
 			//Send broadcast
 			gi_Broadcast_NextTime = uiCurrentTime + BROADCAST_TIMEOUT;
@@ -179,8 +187,8 @@ setupLocalAP()
 	wifi_softap_dhcps_stop();
 	{
 		struct dhcps_lease sDHCP;
-		sDHCP.start_ip = 0xC0A80464; //192.168.4.100
-		sDHCP.end_ip   = 0xC0A804C8; //192.168.4.200
+		sDHCP.start_ip.addr = 0xC0A80464; //192.168.4.100
+		sDHCP.end_ip.addr   = 0xC0A804C8; //192.168.4.200
 		wifi_softap_set_dhcps_lease(&sDHCP);
 	}
 	wifi_softap_dhcps_start();
@@ -222,17 +230,22 @@ connectToRemoteAP()
 	//Restart mode, not sure if this helps
 	wifi_set_opmode(0x01);
 }
-
+void ICACHE_FLASH_ATTR user_rf_pre_init()
+{
+}
 //Init function 
 void ICACHE_FLASH_ATTR
 user_init()
 {
+	os_delay_us(1000*1000);
 	//Enable UART at 115200 BAUD
 	uart_div_modify(0, UART_CLK_FREQ / 115200);
+	os_printf("Starting Init\n\r");
 	ets_wdt_disable();
-	CFG_Load();
 	
+	CFG_Load();
 	os_printf("Loading complete\n\r");
+	
 	if(sysCfg.station_ssid[0])
 		os_printf("Station SSID: %s\n\r", sysCfg.station_ssid);
 	if(sysCfg.station_pwd[0])
@@ -244,7 +257,7 @@ user_init()
 	os_printf("Baud: %d\n\r", sysCfg.cfg_BaudRate);
 	os_printf("OutMode: %d\n\r", sysCfg.conbOutputMode);
 	os_printf("Timeout: %d\n\r", sysCfg.conTCPTimeout);
-		
+
 	//Setup GPIO and data buffer
 	gpio_init();
 	PIN_DIR_OUTPUT = 0x04;
@@ -255,7 +268,12 @@ user_init()
 	os_timer_disarm(&tStatusTimer);
 	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
 	os_timer_arm(&tStatusTimer, 250, true);
+	ws2812_init();
+	initRGB();
 	os_printf("Timer set\n\r");
 	os_printf("RTC calibration at %d\n\r", system_rtc_clock_cali_proc());
+	ws2812_push(rgcBufferTest, 40);
 	eCurrentLaunchState = STATE_STARTREMOTE;
+	
+	StateEngine(0);
 }
