@@ -1,6 +1,7 @@
 #include "Port_Transfer.h"
 #include "application.h"
 #include "eagle_soc.h"
+#include "DirectMemory.h"
 #define midiHigh() PIN_OUT_SET = 0x04; os_delay_us(38);
 #define midiLow() PIN_OUT_CLEAR = 0x04; os_delay_us(38);
 
@@ -49,13 +50,13 @@ uint16_t m_ui16OutputPins = 0x04;
 							
 //CommandTransfer socket
 struct espconn espconnTransfer;
-
+char bIsInitialised = 0;
 //TransferBuffer
 char* gpDataBuffer;
 uint32 giDataLen;
 uint32 giDataMax;
 struct espconn* espconnClient;
-
+bool bHasTransferClient() { return espconnClient != 0; }
 void ICACHE_FLASH_ATTR InitTransferServer(uint32 Port)
 {
 	memset(&espconnTransfer, 0, sizeof( struct espconn ) );
@@ -73,7 +74,7 @@ enableTransferServer(uint32 iTCPPort)
 	}
 	else
 	{
-		gpDataBuffer = (char*)os_malloc((30*1024) + 2 + 1); //Data + size + tempo
+		gpDataBuffer = (char*)os_malloc((20*1024) + 2 + 1); //Data + size + tempo
 		os_printf("Buffer Allocated\n\r");
 	}
 	espconn_create(&espconnTransfer);
@@ -88,19 +89,25 @@ enableTransferServer(uint32 iTCPPort)
 	espconn_regist_time(&espconnTransfer, 120, 0);
 }
 
-
+void ICACHE_FLASH_ATTR
+	TransferConnectionReset(void* pConnection, sint8 iError)
+{
+	os_sprintf("Error happened! E:%d", iError);
+}
 //Handles a connection from a remote target on any port
 void ICACHE_FLASH_ATTR
 TransferConnectionEstablished(void* pArg)
 {
 	os_printf("Connection Established\n\r");
 	struct espconn * pConnection = (struct espconn*) pArg;
+	espconn_regist_time(pConnection, 120, 0);
 	espconnClient = pConnection;
 	espconn_regist_time(pConnection, 120, 0);
 	giDataLen = 0;
 	giDataMax = 0;
 	espconn_regist_recvcb(pConnection, TransferDataRecieved);
 	espconn_regist_disconcb(pConnection, TransferConnectionClosed);
+	espconn_regist_reconcb(pConnection, TransferConnectionReset);
 }
 //Handles remote client disconnection
 void ICACHE_FLASH_ATTR
@@ -109,18 +116,11 @@ TransferConnectionClosed(void* pArg)
 	os_printf("Connection closed\n\r");
 	struct espconn * pConnection =  (struct espconn*) pArg;
 }
-uint32_t usPerBeat;
+uint32_t usPerBeat = 0;
 uint8_t bCounter = 0;
 void TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 {
-	if(bCounter == 0)
-	{
-		bCounter = 250;
-		os_printf("Memory left: %d\n\r", system_get_free_heap_size());
-	}
-	else
-		--bCounter;
-		char* pDataToRead = pData;
+	char* pDataToRead = pData;
 		unsigned short iToRead = iLength;
 		char i;
 		if(giDataMax == 0)
@@ -143,48 +143,38 @@ void TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 				}break;
 				default:
 				{
-					
+					++usPerBeat;
 					m_ui16OutputPins = gpDataBuffer[0];
 					m_ui16OutputPins = m_ui16OutputPins << 8;
 					m_ui16OutputPins |= gpDataBuffer[1];
 					m_ui16OutputPins &= 0x1111000000110101;
 					//os_printf("Starting to send %d bytes over ports %d\n\r", giDataMax - 2, m_ui16OutputPins);
+					os_delay_us(1);
 					ProcessNeo(gpDataBuffer+2, giDataMax - 2);
+					os_delay_us(1);
 					//os_printf("Done\n\r", giDataMax - 2);
 				}break;
 			}
 			espconn_sent(pTarget, "1", 1);
 			giDataLen = 0;
 			giDataMax = 0;
+			if(bCounter == 0)
+			{
+				bCounter = 50;
+				os_printf("Memory left: %d at cycle %d\n\r", system_get_free_heap_size(), usPerBeat);
+			}
+			else
+				--bCounter;
 		}
 }
 void ProcessNeo(char* pcNPixel, uint32 uiLen)
 {
-	/*while(1)
+	if(bIsInitialised == 0)
 	{
-		int i;
-		int j;
-		int k;
-		for(j = 0; j < 255; ++j)
-		{
-				for(i = 0; i < 29; ++i)
-				{
-					SendWheel((i*8)+(j*8));
-				}
-				neoLatch();
-				os_delay_us(90000);
-		}
-	}*/
-	uint32 iCount;
-	ets_wdt_disable();
-	os_intr_lock();
-	for(iCount = 0; iCount < uiLen; iCount += 3)
-	{
-		sendneoByte(pcNPixel[iCount+1]);
-		sendneoByte(pcNPixel[iCount]);
-		sendneoByte(pcNPixel[iCount+2]);
+		bIsInitialised = 1;
+		ws2812_init();
 	}
-	os_intr_unlock();
+	ws2812_push(pcNPixel, uiLen);
 }
 
 

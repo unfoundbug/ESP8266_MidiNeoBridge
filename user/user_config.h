@@ -7,6 +7,7 @@
 #include "mem.h"
 #include "espconn.h"
 #include "eagle_soc.h"
+/*
 extern volatile uint32_t PIN_OUT;
 extern volatile uint32_t PIN_OUT_SET;
 extern volatile uint32_t PIN_OUT_CLEAR;
@@ -19,3 +20,4 @@ extern volatile uint32_t PIN_IN;
 
 extern volatile uint32_t PIN_0;
 extern volatile uint32_t PIN_2;
+*/

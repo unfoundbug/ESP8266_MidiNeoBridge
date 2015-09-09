@@ -22,12 +22,32 @@ os_timer_t tConnectionTimer;
 os_timer_t tStatusTimer;
 
 char rgcIpAddress[4];
-char rgcBufferTest[60];
+const int iLedCount = 24;
+const int iBufferSize = 72;
+char rgcBufferTest[72];
 void initRGB()
 {
 	int i = 0;
-	for(; i < 60; ++i)
-		rgcBufferTest[i] = i*3;
+	for(; i < iLedCount; ++i)
+	{
+			if(i%3 == 0)
+			{
+				rgcBufferTest[i*3] = 0xff;
+				rgcBufferTest[i*3+1] = 0;
+				rgcBufferTest[i*3+2] = 0;
+			}
+			else if(i%2 == 0)
+			{
+				rgcBufferTest[i*3] = 0;
+				rgcBufferTest[i*3+1] = 0xff;
+				rgcBufferTest[i*3+2] = 0;
+			}else{
+				rgcBufferTest[i*3] = 0;
+				rgcBufferTest[i*3+1] = 0;
+				rgcBufferTest[i*3+2] = 0xff;
+			}
+	}
+		
 }
 //Called on a timers
 static void ICACHE_FLASH_ATTR
@@ -41,7 +61,7 @@ StateEngine(os_event_t *events)
 		{
 			os_printf("Starting connection to remote wifi\n\r");
 			connectToRemoteAP();
-			gi_RemoteStation_EndTime = uiCurrentTime + 30 + CONNECTION_TIMEOUT;
+			gi_RemoteStation_EndTime = uiCurrentTime + CONNECTION_TIMEOUT;
 			eCurrentLaunchState = STATE_REMOTE_AWAITING;
 			
 		}break;
@@ -199,6 +219,12 @@ setupLocalAP()
 static void ICACHE_FLASH_ATTR
 connectToRemoteAP()
 {
+	if(sysCfg.station_ssid[0] == 0)
+	{
+		gi_RemoteStation_EndTime = 0;
+		os_printf("NO STATION CONFIGURED!\n\r");
+		return;
+	}
 	os_printf("Starting station mode\n\r");
 	//Set Remote mode, to allow settings update
 	wifi_set_opmode(0x01);
@@ -265,15 +291,13 @@ user_init()
 	memset(&espconnBroadcast, 0, sizeof( struct espconn ) );
 	PIN_OUT_CLEAR = 0x04; //Init NeoLine;
 		
-	os_timer_disarm(&tStatusTimer);
-	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
-	os_timer_arm(&tStatusTimer, 250, true);
-	ws2812_init();
+	//ws2812_init();
 	initRGB();
 	os_printf("Timer set\n\r");
 	os_printf("RTC calibration at %d\n\r", system_rtc_clock_cali_proc());
-	ws2812_push(rgcBufferTest, 40);
-	eCurrentLaunchState = STATE_STARTREMOTE;
 	
-	StateEngine(0);
-}
+	eCurrentLaunchState = STATE_STARTREMOTE;
+	os_timer_disarm(&tStatusTimer);
+	os_timer_setfn(&tStatusTimer, (os_timer_func_t*) StateEngine, 0);
+	os_timer_arm(&tStatusTimer, 250, true);
+	}
