@@ -13,8 +13,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Socket;
@@ -30,7 +28,8 @@ public class basepage extends ActionBarActivity {
     SeekBar m_sBarR;
     SeekBar m_sBarG;
     SeekBar m_sBarB;
-    TextView m_tBroadcastResult;
+    TextView m_tBroadcastState;
+    TextView m_tTransmissionState;
     Button m_bModeChange;
 
     int[] bColour= new int[3];
@@ -63,7 +62,8 @@ public class basepage extends ActionBarActivity {
         m_sBarG.setOnSeekBarChangeListener(seekChangeHandler);
         m_sBarB.setOnSeekBarChangeListener(seekChangeHandler);
 
-        m_tBroadcastResult = (TextView) findViewById((R.id.textBroadcast));
+        m_tBroadcastState = (TextView) findViewById((R.id.txtBroadcastState));
+        m_tTransmissionState = (TextView) findViewById((R.id.txtTransmissionState));
 
         m_bModeChange = (Button) findViewById(R.id.button);
         m_bModeChange.setOnClickListener(buttonClickHandler);
@@ -90,18 +90,27 @@ public class basepage extends ActionBarActivity {
                            m_sTargetNeo = udpPacket.getAddress().getHostAddress();
                            strMessage = ("Recieved - " + m_sTargetNeo);
                            m_bOkToSend = true;
+                           final String strForUI = strMessage;
+                           runOnUiThread(new Runnable() {
+
+                               @Override
+                               public void run() {
+                                   m_tBroadcastState.setText(strForUI.toCharArray(), 0, strForUI.length());
+                               }
+                           });
 
                        } catch (Exception ex) {
+                           final String strForUI = "Exception while attempting to recieve broadcast";
+                           runOnUiThread(new Runnable() {
+
+                               @Override
+                               public void run() {
+                                   m_tBroadcastState.setText(strForUI.toCharArray(), 0, strForUI.length());
+                               }
+                           });
                            continue;
                        }
-                       final String strForUI = strMessage;
-                       runOnUiThread(new Runnable() {
 
-                           @Override
-                           public void run() {
-                               m_tBroadcastResult.setText(strForUI.toCharArray(), 0, strForUI.length());
-                           }
-                       });
                    }
                }
             }
@@ -111,18 +120,29 @@ public class basepage extends ActionBarActivity {
         m_tColourSend = new Thread(
                 new Runnable() {
                     public void run() {
-                        Socket s = new Socket();
-                        OutputStream outStream = null;
-                        InputStream iStream = null;
+
                         int iLedCount = 150;
                         byte[] sendBuf = new byte[(iLedCount*3)+4];
                         int bCycleCount = 0;
-                        int bCycleSubCount = 0;
                         int iTimeToWait = 10;
                         int r,g,b;
                         int iBufferIter = 0;
+                        DatagramSocket sUdpSocket;
+                        try {
+                            sUdpSocket = new DatagramSocket(8081);
+                        }catch (SocketException Ex){
+                            final String strForUI = "FAILED TO CREATE UDP OUTPUT";
+                            runOnUiThread(new Runnable() {
+
+                                @Override
+                                public void run() {
+                                }
+                            });
+                            return;
+                        }
                         while (true) {
                             try {
+
                                 ++bCycleCount;
                                 if (m_bOkToSend) {
                                     int iCount = (iLedCount*3)+2;
@@ -195,35 +215,39 @@ public class basepage extends ActionBarActivity {
                                     }
                                     iBufferIter = 0;
                                     InetAddress ia = InetAddress.getByName(m_sTargetNeo);
-                                    if(!s.isConnected()) {
-                                        s = new Socket(ia, 8081);
-                                        s.setSoTimeout(5000);
-                                        outStream = s.getOutputStream();
-                                        iStream = s.getInputStream();
+                                    DatagramPacket packet = new DatagramPacket(sendBuf, iBufferIter, ia, 8081);
+
+                                    try {
+                                        sUdpSocket.send(packet);
+                                    } catch (SocketException e) {
+                                        final String strForUI = "Failed To Send datagram packet";
+                                        runOnUiThread(new Runnable() {
+
+                                            @Override
+                                            public void run() {
+                                                m_tTransmissionState.setText(strForUI.toCharArray(), 0, strForUI.length());
+                                            }
+                                        });
                                     }
-                                    if(s.isConnected()) {
-                                        outStream.write(sendBuf);
-                                        byte[] rcvBuf = new byte[1];
-                                        while(s.getInputStream().available() == 0);
-                                            iStream.read(rcvBuf);
-                                    }
+                                    final String strForUI = "Sent packet OK";
+                                    runOnUiThread(new Runnable() {
+
+                                        @Override
+                                        public void run() {
+                                            m_tTransmissionState.setText(strForUI.toCharArray(), 0, strForUI.length());
+                                        }
+                                    });
                                     Thread.sleep(iTimeToWait);
                                 } else {
                                     Thread.sleep(2000);
                                 }
                             } catch (Exception ex) {
-                                m_bOkToSend = false;
-                                try {
-                                    s.close();
-                                } catch (IOException e) {
-                                    e.printStackTrace();
-                                }
                                 final String strForUI = "Failed To Send";
                                 runOnUiThread(new Runnable() {
 
                                     @Override
                                     public void run() {
-                                        m_tBroadcastResult.setText(strForUI.toCharArray(), 0, strForUI.length());
+                                        m_tTransmissionState.setText(strForUI.toCharArray(), 0, strForUI.length());
                                     }
                                 });
                             }
