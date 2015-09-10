@@ -46,6 +46,7 @@ namespace ESPWifiLink
             {
                 try
                 {
+                    m_strTarget = "127.0.0.1";
                     udpReciever.Receive(ref ipRemote);
                     m_strTarget = ipRemote.Address.MapToIPv4().ToString();
                 }
@@ -87,9 +88,7 @@ namespace ESPWifiLink
                     if (m_sSocket == null || !m_sSocket.Connected)
                     {
                         if (m_strTarget.Length == 0) continue;
-                        m_sSocket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
-                        m_sSocket.ReceiveTimeout = 100;
-                        m_sSocket.SendTimeout = 100;
+                        m_sSocket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Dgram, System.Net.Sockets.ProtocolType.Udp);
                         m_sSocket.Connect(m_strTarget, 8081);
                     }
                     System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
@@ -97,10 +96,7 @@ namespace ESPWifiLink
                     m_sSocket.Send(bBuffer);
                     m_iNetworkState = 1;
                     byte[] bRecieve = new byte[5];
-                    System.Threading.Thread.Sleep(10);
-                    int amnt = 0;
-                    while (amnt < 1)
-                        amnt += m_sSocket.Receive(bRecieve);
+                    System.Threading.Thread.Sleep(1);
                     sw.Stop();
                     long ms = sw.ElapsedMilliseconds;
                     m_bNetworkOK = true;
