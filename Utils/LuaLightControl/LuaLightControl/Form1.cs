@@ -171,6 +171,12 @@ namespace LuaLightControl
             if (e.KeyCode == Keys.Enter)
                 button3_Click(null, null);
         }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            m_wWifiInteraction.Stop();
+            bgWorker.CancelAsync();
+        }
     }
     public class LuaInterface
     {
