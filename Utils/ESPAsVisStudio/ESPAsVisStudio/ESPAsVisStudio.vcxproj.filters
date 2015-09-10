@@ -107,5 +107,8 @@
     <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\user_interface.h">
       <Filter>Header Files\ESP8266Headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\user\DirectMemory.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

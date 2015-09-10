@@ -36,17 +36,43 @@ namespace SerialCommand
         public Form1()
         {
             InitializeComponent();
-        }
 
+            
+        }
+        System.Threading.ThreadStart m_tsNetwork;
+        System.Threading.Thread m_nTNetwork;
+        System.Threading.ThreadStart m_tsSerial;
+        System.Threading.Thread m_nTSerial;
+        
         private void Form1_Load(object sender, EventArgs e)
         {
-            serialPort1 = new System.IO.Ports.SerialPort("COM4", 115200);
+            serialPort1 = new System.IO.Ports.SerialPort("COM4", 78400);
             udpReciever = new System.Net.Sockets.UdpClient(8282);
             backgroundWorker1.RunWorkerAsync();
+            m_tsNetwork = new System.Threading.ThreadStart(this.ProcessNetwork);
+            m_nTNetwork = new System.Threading.Thread(m_tsNetwork);
+            m_nTNetwork.Start();
+            m_tsSerial = new System.Threading.ThreadStart(this.ProcessNetwork);
+            m_nTSerial = new System.Threading.Thread(m_tsNetwork);
+            m_nTSerial.Start();
         }
 
         private void timer1_Tick(object sender, EventArgs e)
         {
+            if (bSerialOK)
+                pictureBox1.BackColor = Color.Green;
+            else
+                pictureBox1.BackColor = Color.Red;
+            if (bNetworkOK)
+                pictureBox2.BackColor = Color.Green;
+            else
+                pictureBox2.BackColor = Color.Red;
+            if (m_iNetworkState == 0)
+                pictureBox3.BackColor = Color.Red;
+            else if (m_iNetworkState == 1)
+                pictureBox3.BackColor = Color.Yellow;
+            else
+                pictureBox3.BackColor = Color.Green;
             if (serialPort1.IsOpen)
             {
                 int iBytesRead = 0;
@@ -64,15 +90,16 @@ namespace SerialCommand
                 try
                 {
                     serialPort1.Open();
+                    bSerialOK = true;
                 }
                 catch (Exception ex)
                 {
+                    bSerialOK = false;
                 };
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            timer1.Enabled = false;
             serialPort1.Close();
             System.Diagnostics.Process np = new System.Diagnostics.Process();
             System.Diagnostics.ProcessStartInfo pi = new System.Diagnostics.ProcessStartInfo("cmd.exe");
@@ -86,12 +113,81 @@ namespace SerialCommand
             textBox1.Text += np.StandardOutput.ReadToEnd();
             np.WaitForExit();
             serialPort1.Open();
-            timer1.Enabled = true ;
         }
-
-        private void timer2_Tick(object sender, EventArgs e)
+        bool bChanged = false;
+        bool NextCol = false;
+        bool bSerialOK = false;
+        bool bNetworkOK = false;
+        Color cToSend1;
+        Color cToSend2;
+        System.Net.Sockets.Socket m_sSocket;
+        int m_iNetworkState = 0;
+        private void ProcessNetwork()
         {
-            
+            bNetworkOK = false; 
+            while (true)
+            {
+                System.Threading.Thread.Sleep(250);
+                int iLedCount = 150;
+                if (!bChanged)
+                    continue;
+                bChanged = false;
+                int iLen = (iLedCount * 3) + 4;
+                int iCurPoint = 6;
+
+                byte[] bBuffer = new byte[iLen + 2];
+                bBuffer[0] = (byte)(iLen >> 8);
+                bBuffer[1] = (byte)((iLen & 0xFF));
+                bBuffer[2] = (byte)(0);
+                bBuffer[3] = (byte)(4);
+                bool bSelect = false;
+                for (int i = 0; i < iLedCount; ++i)
+                {
+                    if (bSelect)
+                    {
+                        bBuffer[iCurPoint++] = (byte)(cToSend1.R);
+                        bBuffer[iCurPoint++] = (byte)(cToSend1.G);
+                        bBuffer[iCurPoint++] = (byte)(cToSend1.B);
+                    }
+                    else
+                    {
+                        bBuffer[iCurPoint++] = (byte)(cToSend2.R);
+                        bBuffer[iCurPoint++] = (byte)(cToSend2.G);
+                        bBuffer[iCurPoint++] = (byte)(cToSend2.B);
+                    }
+                    bSelect = !bSelect;
+
+                }
+                try
+                {
+                    if (m_sSocket == null || !m_sSocket.Connected)
+                    {
+                        m_sSocket = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
+                        m_sSocket.ReceiveTimeout = 100;
+                        m_sSocket.SendTimeout = 100;
+                        m_sSocket.Connect(label1.Text, 8081);
+                    }
+                    System.Diagnostics.Stopwatch sw = new System.Diagnostics.Stopwatch();
+                    sw.Start();
+                    m_sSocket.Send(bBuffer);
+                    m_iNetworkState = 1;
+                    byte[] bRecieve = new byte[5];
+                    System.Threading.Thread.Sleep(10);
+                    int amnt = 0;
+                    while(amnt < 5)
+                        amnt += m_sSocket.Receive(bRecieve);
+                    sw.Stop();
+                    long ms = sw.ElapsedMilliseconds;
+                    bNetworkOK = true;
+                    m_iNetworkState = 2;
+                }
+                catch (Exception ex)
+                {
+                    bNetworkOK = false;
+                    m_sSocket = null;
+                    m_iNetworkState = 0;
+                }
+            }
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
@@ -110,7 +206,7 @@ namespace SerialCommand
         private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
         {
             broadcastPacket bPacket = (broadcastPacket)(e.UserState);
-            label1.Text = bPacket.ipRemote.ToString();
+            label1.Text = bPacket.ipRemote.Address.ToString();
             label2.Text = bPacket.dt.ToString();
             string strDataRecieved = "";
             foreach (byte b in bPacket.bData)
@@ -122,213 +218,17 @@ namespace SerialCommand
 
 		private void button1_Click_1(object sender, EventArgs e)
 		{
-			dataGridView1.Rows.Clear();
-			DialogResult dr = openFileDialog1.ShowDialog();
-			if (dr != DialogResult.OK) return;
-			byte [] bHeader = new byte[14];
-			byte[] bTrackHeader = new byte[8];
-            llMidiEvents = new List<List<MidiEvent>>();
-			liMidiPlayTime = new List<int>(0);
-			Dictionary<byte, string> strFRes = new Dictionary<byte, string>();
-			if (openFileDialog1.CheckFileExists)
-			{
-				System.IO.Stream strFile = openFileDialog1.OpenFile();
-				//read header
-				strFile.Read(bHeader, 0, 14);
-				if (memcmp(bHeader, bExpectedHeader, 8) == false)
-				{
-					return;
-				}
-				if (bHeader[9] != 1) //Expect simple multi-track recordings
-				{
-					return;
-				}
-				uint uiHeaderSize = bHeader[7];
-				uiHeaderSize|=((uint)bHeader[6]) << 8;
-				uiHeaderSize|=((uint)bHeader[5]) << 16;
-				uiTrackCount = bHeader[11];
-				uiTrackCount |= ((int)bHeader[10]) << 8;
-				uiTimeScale = bHeader[13];
-				uiTimeScale |= ((int)bHeader[12]) << 8;
-
-				lbTrackData = new byte[uiTrackCount][];
-
-				for(int i = 0; i < uiTrackCount; ++i)
-				{
-					liMidiPlayTime.Add(0);
-					strFile.Read(bTrackHeader, 0, 8);
-					if(!memcmp(bTrackHeader, bExpectedTrack, 4))
-					{ ///Track incorrect
-						return;
-					}
-					uint uiTrackLength = bTrackHeader[7];
-					uiTrackLength |= ((uint)bTrackHeader[6]) << 8;
-					uiTrackLength |= ((uint)bTrackHeader[5]) << 16;
-					uiTrackLength |= ((uint)bTrackHeader[4]) << 24;
-					lbTrackData[i] = new byte[uiTrackLength];
-                    strFile.Read(lbTrackData[i], 0, (int)uiTrackLength);
-                    llMidiEvents.Add(new List<MidiEvent>());
-                    //Start Pre-Process
-					int bCurrentCommand = 0;
-					for (uint j = 0; j < uiTrackLength; ++j)
-					{
-						//Read Timing bytes
-						int iTimeStep = lbTrackData[i][j] & 0X7f;
-						{
-							while ((lbTrackData[i][j] & (byte)0x80) != 0)
-							{
-								++j;
-								iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
-							}
-						}
-						++j;
-						byte bCommand = lbTrackData[i][j];
-                        ++j;
-						if (bCommand == 0xff)
-						{
-                            //Meta Events
-							byte bSubCommand = lbTrackData[i][j];
-							++j;
-							//dynamic length that can be ignored
-							int iCommandLength = lbTrackData[i][j] & 0X7f;
-							{
-								while ((lbTrackData[i][j] & (byte)0x80) != 0)
-								{
-									++j;
-									iTimeStep = (iTimeStep << 7) + (lbTrackData[i][j] & (byte)0x80);
-								}
-							}
-							if (bSubCommand == 0x03 || bSubCommand == 0x51)
-							{
-								string strValue;
-								string strRes = "";
-								if(bSubCommand == 0x03)
-									strRes = i.ToString() + ": " + System.Text.Encoding.UTF8.GetString(lbTrackData[i], (int)j + 1, (int)iCommandLength) + "\n";
-								else
-								{
-									Int32 tempo = lbTrackData[i][j+1] << 16;
-									tempo += lbTrackData[i][j+2] << 8;
-									tempo += lbTrackData[i][j+3];
-									tempo = 60000000 / tempo;
-									strRes = i.ToString() + ": " + tempo.ToString() + "\n";
-								}
-								if (strFRes.TryGetValue(bSubCommand, out strValue) == true)
-									strFRes[bSubCommand] = strValue + strRes;
-								else
-									strFRes.Add(bSubCommand, strRes);
-							}
-							j += (uint)iCommandLength;
-						}
-                        else if (bCommand == 0xF0)
-                        {
-                            byte bCommandLen = lbTrackData[i][j];
-                            j += (uint)bCommandLen + 1;
-                        }
-                        else
-                        {
-                            MidiEvent nm = new MidiEvent();
-							nm.iCommand = bCommand;
-							if (bCommand < 0x80)
-							{
-								--j;
-								nm.iCommand = bCurrentCommand;
-							}
-							else
-							{
-								nm.iCommand = bCommand;
-								bCurrentCommand = bCommand;
-							}
-
-                            nm.iTime = iTimeStep;
-                            nm.iData1 = lbTrackData[i][j];
-                            if (nm.iCommand < 0xE0 && bCommand > 0xBF)
-                            {
-								nm.iData2 = -1;
-                            }
-                            else
-                            {
-								++j;
-								nm.iData2 = lbTrackData[i][j];
-                            }
-                            llMidiEvents[i].Add(nm);
-                        }
-					}
-				}
-				bool bEventsLeft;
-				int iLastEvent = 0;
-				int iNextEntry = 0;
-				do
-				{
-					bEventsLeft = false;
-					    int iClosestEvent = (int)0x0FFFFFFF;
-					iNextEntry = -1;
-
-					for (int i = 0; i < llMidiEvents.Count; ++i)
-					{
-						if (llMidiEvents[i].Count > 0)
-						{
-							int iNextEvent;
-							iNextEvent = (llMidiEvents[i][0].iTime + liMidiPlayTime[i]);
-							if (iClosestEvent >= iNextEvent)
-							{
-								iClosestEvent = iNextEvent;
-								iNextEntry = i;
-							}
-						}
-					}
-					if (iNextEntry == -1)
-					{
-						int iBreakHere = 1;
-					}
-					int iWaitTime = (iClosestEvent - iLastEvent);
-					iLastEvent = iClosestEvent;
-					liMidiPlayTime[iNextEntry] += iClosestEvent - liMidiPlayTime[iNextEntry];
-					string[] row = new string[] { iClosestEvent.ToString(), iWaitTime.ToString(), llMidiEvents[iNextEntry][0].iCommand.ToString("X2"), llMidiEvents[iNextEntry][0].iData1.ToString(), llMidiEvents[iNextEntry][0].iData2.ToString() };
-					dataGridView1.Rows.Add(row);
-					llMidiEvents[iNextEntry].RemoveAt(0);
-					foreach (List<MidiEvent> lE in llMidiEvents)
-						if (lE.Count > 0)
-							bEventsLeft = true;
-				} while (bEventsLeft);
-				foreach (KeyValuePair<byte, string> pair in strFRes)
-				{
-					MessageBox.Show(pair.Value, pair.Key.ToString());
-				}
-			}
+			
 		}
 
 		private void button2_Click(object sender, EventArgs e)
 		{
-
-            int iLen = (dataGridView1.Rows.Count * 5) + 2;
-            int iCurPoint = 4;
-            MessageBox.Show("Estimated data length: " + iLen.ToString());
-
-            byte[] bBuffer = new byte[iLen+2];
-            bBuffer[0] =(byte)(iLen >> 8);
-            bBuffer[1] = (byte)((iLen & 0xFF));
-            int iUsPerBeat = 8333;
-            bBuffer[2] = (byte)((iUsPerBeat & 0xFF00) >> 8);
-            bBuffer[3] = (byte)((iUsPerBeat & 0xFF));
-			foreach (DataGridViewRow row in dataGridView1.Rows)
-			{
-                string strCell1, strCell2, strCell3, strCell4;
-                strCell1 = row.Cells[1].Value.ToString();
-                strCell2 = row.Cells[2].Value.ToString();
-                strCell3 = row.Cells[3].Value.ToString();
-                strCell4 = row.Cells[4].Value.ToString();
-                int iTime = int.Parse(strCell1);
-                bBuffer[iCurPoint++] = (byte)((iTime & 0xF0) << 8);
-                bBuffer[iCurPoint++] = (byte) (iTime & 0xF);
-                bBuffer[iCurPoint++] = (byte)0xFF;//int.Parse(strCell2, System.Globalization.NumberStyles.HexNumber);
-                bBuffer[iCurPoint++] = (byte)0xFF;//int.Parse(strCell3);
-                bBuffer[iCurPoint++] = (byte)0xff;//int.Parse(strCell4);
-			}
-            System.Net.Sockets.Socket s = new System.Net.Sockets.Socket(System.Net.Sockets.AddressFamily.InterNetwork, System.Net.Sockets.SocketType.Stream, System.Net.Sockets.ProtocolType.Tcp);
-            s.Connect("192.168.43.178", 8081);
-            s.Send(bBuffer);
-            s.Close();
-
+            colorDialog1.ShowDialog();
+            vScrollBar1.Value = colorDialog1.Color.R;
+            vScrollBar2.Value = colorDialog1.Color.G;
+            vScrollBar3.Value = colorDialog1.Color.B;
+            SetNextColour();
+            bChanged = true;
 		}
 
         private void button3_Click(object sender, EventArgs e)
@@ -336,6 +236,34 @@ namespace SerialCommand
 
         }
 
+        private void vScrollBar1_Scroll(object sender, ScrollEventArgs e)
+        {
+            SetNextColour();
+        }
+        private void SetNextColour()
+        {
+
+            if (NextCol)
+            {
+                cToSend1 = Color.FromArgb(255, vScrollBar1.Value, vScrollBar2.Value, vScrollBar3.Value);
+            }
+            else
+            {
+                cToSend2 = Color.FromArgb(255, vScrollBar1.Value, vScrollBar2.Value, vScrollBar3.Value);
+            }
+            NextCol = !NextCol;
+            bChanged = true;
+        }
+
+        private void vScrollBar2_Scroll(object sender, ScrollEventArgs e)
+        {
+            SetNextColour();
+        }
+
+        private void vScrollBar3_Scroll(object sender, ScrollEventArgs e)
+        {
+            SetNextColour();
+        }
     }
     public class broadcastPacket
     {

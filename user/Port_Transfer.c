@@ -64,11 +64,11 @@ void ICACHE_FLASH_ATTR InitTransferServer(uint32 Port)
 }
 
 void ICACHE_FLASH_ATTR
-enableTransferServer(uint32 iTCPPort)
+enableTransferServer(uint32 iUDPPort)
 {
-	if(espconnTransfer.proto.tcp) //If we had something already
+	if(espconnTransfer.proto.udp) //If we had something already
 	{
-		os_free(espconnTransfer.proto.tcp);
+		os_free(espconnTransfer.proto.udp);
 		espconn_delete(&espconnTransfer);
 		memset(&espconnTransfer, 0, sizeof( struct espconn ) );
 	}
@@ -78,43 +78,21 @@ enableTransferServer(uint32 iTCPPort)
 		os_printf("Buffer Allocated\n\r");
 	}
 	espconn_create(&espconnTransfer);
-	espconnTransfer.type  = ESPCONN_TCP;
+	espconnTransfer.type  = ESPCONN_UDP;
 	espconnTransfer.state = ESPCONN_NONE; 
 
-	espconnTransfer.proto.tcp = (esp_tcp*)os_malloc(sizeof(esp_tcp));
-	espconnTransfer.proto.tcp->local_port = iTCPPort;
+	espconnTransfer.proto.udp = (esp_udp*)os_malloc(sizeof(esp_udp));
+	espconnTransfer.proto.udp->local_port = iUDPPort;
 
-	espconn_regist_connectcb(&espconnTransfer, TransferConnectionEstablished);
-	espconn_accept(&espconnTransfer);
-	espconn_regist_time(&espconnTransfer, 120, 0);
-}
-
-void ICACHE_FLASH_ATTR
-	TransferConnectionReset(void* pConnection, sint8 iError)
-{
-	os_sprintf("Error happened! E:%d", iError);
-}
-//Handles a connection from a remote target on any port
-void ICACHE_FLASH_ATTR
-TransferConnectionEstablished(void* pArg)
-{
-	os_printf("Connection Established\n\r");
-	struct espconn * pConnection = (struct espconn*) pArg;
-	espconn_regist_time(pConnection, 120, 0);
-	espconnClient = pConnection;
-	espconn_regist_time(pConnection, 120, 0);
-	giDataLen = 0;
-	giDataMax = 0;
-	espconn_regist_recvcb(pConnection, TransferDataRecieved);
-	espconn_regist_disconcb(pConnection, TransferConnectionClosed);
-	espconn_regist_reconcb(pConnection, TransferConnectionReset);
-}
-//Handles remote client disconnection
-void ICACHE_FLASH_ATTR
-TransferConnectionClosed(void* pArg)
-{
-	os_printf("Connection closed\n\r");
-	struct espconn * pConnection =  (struct espconn*) pArg;
+	espconn_regist_recvcb(&espconnTransfer, TransferDataRecieved);
+	os_printf("Creating socket \n\r");
+	if( espconn_create( &espconnTransfer ) )
+	{
+		os_printf("ERROR CREATING UDP SOCKET\n\r");
+	}
+	os_printf("Socket Created\n\r");
+	//espconn_accept(&espconnTransfer);
+	//espconn_regist_time(&espconnTransfer, 120, 0);
 }
 uint32_t usPerBeat = 0;
 uint8_t bCounter = 0;
@@ -148,14 +126,11 @@ void TransferDataRecieved(void* pTarget, char* pData, unsigned short iLength)
 					m_ui16OutputPins = m_ui16OutputPins << 8;
 					m_ui16OutputPins |= gpDataBuffer[1];
 					m_ui16OutputPins &= 0x1111000000110101;
-					//os_printf("Starting to send %d bytes over ports %d\n\r", giDataMax - 2, m_ui16OutputPins);
 					os_delay_us(1);
 					ProcessNeo(gpDataBuffer+2, giDataMax - 2);
 					os_delay_us(1);
-					//os_printf("Done\n\r", giDataMax - 2);
 				}break;
 			}
-			espconn_sent(pTarget, "1", 1);
 			giDataLen = 0;
 			giDataMax = 0;
 			if(bCounter == 0)

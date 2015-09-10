@@ -44,7 +44,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <NMakeBuildCommandLine>C:\SVN\ESP\trunk\Build.bat</NMakeBuildCommandLine>
-    <NMakeOutput>ESPAsVisStudio.exe</NMakeOutput>
+    <NMakeOutput>C:\SVN\ESP\trunk\flash.bat</NMakeOutput>
     <NMakeCleanCommandLine>C:\SVN\ESP\trunk\Clean.bat</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>WIN32;NDEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
     <NMakeReBuildCommandLine>C:\SVN\ESP\trunk\Rebuild.bat</NMakeReBuildCommandLine>
@@ -81,6 +81,7 @@
     <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\upgrade.h" />
     <ClInclude Include="..\..\..\..\..\..\Esp8266\ESP8266_SDK\include\user_interface.h" />
     <ClInclude Include="..\..\..\user\application.h" />
+    <ClInclude Include="..\..\..\user\DirectMemory.h" />
     <ClInclude Include="..\..\..\user\NonVol.h" />
     <ClInclude Include="..\..\..\user\Port_Command.h" />
     <ClInclude Include="..\..\..\user\Port_HTTP.h" />
