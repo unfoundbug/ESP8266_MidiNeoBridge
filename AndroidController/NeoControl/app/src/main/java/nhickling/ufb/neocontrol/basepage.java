@@ -100,7 +100,7 @@ public class basepage extends ActionBarActivity {
                            });
 
                        } catch (Exception ex) {
-                           final String strForUI = "Exception while attempting to recieve broadcast";
+                           final String strForUI = "Exception while attempting to recieve broadcast: " + ex.toString();
                            runOnUiThread(new Runnable() {
 
                                @Override
@@ -220,7 +220,7 @@ public class basepage extends ActionBarActivity {
                                     try {
                                         sUdpSocket.send(packet);
                                     } catch (SocketException e) {
-                                        final String strForUI = "Failed To Send datagram packet";
+                                        final String strForUI = "Failed To Send datagram packet: " + e.toString();
                                         runOnUiThread(new Runnable() {
 
                                             @Override
@@ -242,7 +242,7 @@ public class basepage extends ActionBarActivity {
                                     Thread.sleep(2000);
                                 }
                             } catch (Exception ex) {
-                                final String strForUI = "Failed To Send";
+                                final String strForUI = "Failed To Send: " + ex.toString();
                                 runOnUiThread(new Runnable() {
 
                                     @Override
